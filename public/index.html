@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BugTrack — Issue Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root{
+  --bg:#f0f2f7;--sidebar:#1a1d27;--card:#fff;--border:#e2e6f0;--border2:#d0d5e8;
+  --accent:#4f6ef7;--accent-light:#eef1fe;--accent-hover:#3a58e8;
+  --danger:#ef4444;--danger-bg:#fef2f2;--warn:#f59e0b;--warn-bg:#fffbeb;
+  --success:#10b981;--success-bg:#ecfdf5;--purple:#8b5cf6;--purple-bg:#f5f3ff;
+  --text:#111827;--text2:#374151;--muted:#6b7280;--muted2:#9ca3af;
+  --font:'Plus Jakarta Sans',sans-serif;--mono:'DM Mono',monospace;
+  --radius:10px;--shadow:0 1px 3px rgba(0,0,0,.08),0 4px 16px rgba(0,0,0,.06);
+  --shadow-sm:0 1px 2px rgba(0,0,0,.06);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;min-height:100vh;display:flex;}
+
+/* ── SIDEBAR ── */
+.sidebar{width:260px;min-height:100vh;background:var(--sidebar);display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto;}
+.sidebar-logo{padding:24px 20px 18px;border-bottom:1px solid rgba(255,255,255,.07);}
+.logo-mark{display:flex;align-items:center;gap:11px;}
+.logo-icon{width:38px;height:38px;background:linear-gradient(135deg,#4f6ef7 0%,#8b5cf6 100%);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 14px rgba(79,110,247,.45);position:relative;overflow:hidden;}
+.logo-icon::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.18) 0%,transparent 60%);}
+.logo-icon svg{width:20px;height:20px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;position:relative;z-index:1;}
+.logo-text-wrap{display:flex;flex-direction:column;gap:1px;}
+.logo-text{font-size:16px;font-weight:800;color:#fff;letter-spacing:-.4px;line-height:1;}
+.logo-text span{background:linear-gradient(90deg,#a5b4fc,#c4b5fd);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.logo-tagline{font-size:9.5px;font-weight:500;color:rgba(255,255,255,.3);letter-spacing:.6px;text-transform:uppercase;}
+.sidebar-nav{padding:18px 14px;flex:1;}
+.nav-section-label{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:rgba(255,255,255,.3);padding:0 10px;margin-bottom:6px;margin-top:4px;}
+.nav-btn{display:flex;align-items:center;justify-content:space-between;width:100%;padding:9px 12px;border-radius:7px;background:transparent;border:none;color:rgba(255,255,255,.55);font-family:var(--font);font-size:13.5px;font-weight:500;cursor:pointer;text-align:left;transition:all .15s;margin-bottom:2px;}
+.nav-btn:hover{background:rgba(255,255,255,.07);color:rgba(255,255,255,.85);}
+.nav-btn.active{background:rgba(79,110,247,.22);color:#fff;}
+.nav-btn .nav-label{display:flex;align-items:center;gap:9px;}
+.nav-btn .nav-icon{font-size:15px;opacity:.8;}
+.nav-count{font-size:11px;font-weight:600;background:rgba(255,255,255,.1);color:rgba(255,255,255,.6);padding:2px 8px;border-radius:20px;font-family:var(--mono);}
+.nav-btn.active .nav-count{background:rgba(79,110,247,.4);color:#c7d2fe;}
+.nav-divider{border:none;border-top:1px solid rgba(255,255,255,.07);margin:12px 0;}
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.sd-all{background:#a5b4fc;}.sd-open{background:#f87171;box-shadow:0 0 6px rgba(248,113,113,.5);}
+.sd-obs{background:#fbbf24;box-shadow:0 0 6px rgba(251,191,36,.5);}.sd-closed{background:#34d399;box-shadow:0 0 6px rgba(52,211,153,.5);}
+.sidebar-footer{padding:14px;border-top:1px solid rgba(255,255,255,.07);}
+.sidebar-footer-text{font-size:11px;color:rgba(255,255,255,.25);text-align:center;}
+
+/* ── MAIN ── */
+.main-wrap{flex:1;display:flex;flex-direction:column;min-width:0;}
+.topbar{background:var(--card);border-bottom:1px solid var(--border);padding:14px 32px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:50;box-shadow:var(--shadow-sm);}
+.topbar-title{font-size:16px;font-weight:700;color:var(--text);flex:1;}
+.topbar-title span{color:var(--muted);font-weight:400;font-size:14px;margin-left:6px;}
+.stat-chips{display:flex;gap:8px;}
+.chip{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid;}
+.chip-open{background:var(--danger-bg);color:var(--danger);border-color:#fca5a5;}
+.chip-obs{background:var(--warn-bg);color:#d97706;border-color:#fcd34d;}
+.chip-closed{background:var(--success-bg);color:#059669;border-color:#6ee7b7;}
+.btn-new{display:flex;align-items:center;gap:7px;background:var(--accent);color:#fff;border:none;padding:9px 18px;border-radius:8px;font-family:var(--font);font-size:13.5px;font-weight:600;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(79,110,247,.35);transition:all .15s;}
+.btn-new:hover{background:var(--accent-hover);transform:translateY(-1px);}
+
+/* ── PAGES ── */
+.page{display:none;padding:28px 32px;flex:1;overflow-y:auto;}
+.page.active{display:block;}
+
+/* ── ISSUES TABLE ── */
+.search-bar{display:flex;align-items:center;gap:12px;background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);padding:10px 16px;margin-bottom:20px;box-shadow:var(--shadow-sm);transition:border-color .2s;}
+.search-bar:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,110,247,.1);}
+.search-bar input{flex:1;border:none;outline:none;font-family:var(--font);font-size:14px;color:var(--text);background:transparent;}
+.search-bar input::placeholder{color:var(--muted2);}
+.table-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;}
+table{width:100%;border-collapse:collapse;}
+thead{background:#f8f9fc;}
+th{padding:12px 18px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);}
+td{padding:14px 18px;border-bottom:1px solid var(--border);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr.issue-row{transition:background .12s;cursor:pointer;}
+tr.issue-row:hover td{background:#f5f7ff;}
+.id-cell{font-family:var(--mono);font-size:12px;color:var(--muted2);}
+.title-wrap .t-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:3px;}
+.title-wrap .t-desc{font-size:12px;color:var(--muted);max-width:320px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.client-pill{display:inline-flex;align-items:center;padding:4px 10px;border-radius:6px;background:var(--accent-light);color:var(--accent);font-size:12px;font-weight:600;border:1px solid #c7d2fe;white-space:nowrap;}
+.reporter-cell{font-size:13px;color:var(--text2);font-weight:500;}
+.date-cell{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap;}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:20px;font-size:11.5px;font-weight:700;white-space:nowrap;border:1.5px solid;}
+.badge-open{background:var(--danger-bg);color:var(--danger);border-color:#fca5a5;}
+.badge-obs{background:var(--warn-bg);color:#d97706;border-color:#fcd34d;}
+.badge-closed{background:var(--success-bg);color:#059669;border-color:#6ee7b7;}
+.empty-state{text-align:center;padding:72px 32px;}
+.empty-icon{font-size:42px;margin-bottom:14px;}
+.empty-state p{color:var(--muted);}
+
+/* ── DASHBOARD ── */
+.dash-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;}
+.dash-topbar h1{font-size:22px;font-weight:800;}
+.dash-topbar p{color:var(--muted);font-size:13px;margin-top:2px;}
+.filter-row{display:flex;align-items:center;gap:10px;}
+.filter-select{background:var(--card);border:1.5px solid var(--border);padding:8px 12px;border-radius:8px;font-family:var(--font);font-size:13px;color:var(--text);outline:none;cursor:pointer;}
+.filter-select:focus{border-color:var(--accent);}
+.export-group{display:flex;gap:8px;}
+.btn-export{display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid;transition:all .15s;}
+.btn-xl{background:var(--success-bg);color:#059669;border-color:#6ee7b7;}
+.btn-xl:hover{background:#d1fae5;}
+.btn-pdf{background:var(--danger-bg);color:var(--danger);border-color:#fca5a5;}
+.btn-pdf:hover{background:#fee2e2;}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:22px;}
+.kpi-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow-sm);position:relative;overflow:hidden;}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%;border-radius:4px 0 0 4px;}
+.kpi-total::before{background:var(--accent);}
+.kpi-open::before{background:var(--danger);}
+.kpi-obs::before{background:var(--warn);}
+.kpi-closed::before{background:var(--success);}
+.kpi-rate::before{background:var(--purple);}
+.kpi-label{font-size:10px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+.kpi-value{font-size:30px;font-weight:800;line-height:1;margin-bottom:4px;}
+.kpi-total .kpi-value{color:var(--accent);}
+.kpi-open .kpi-value{color:var(--danger);}
+.kpi-obs .kpi-value{color:var(--warn);}
+.kpi-closed .kpi-value{color:var(--success);}
+.kpi-rate .kpi-value{color:var(--purple);}
+.kpi-sub{font-size:11px;color:var(--muted);}
+
+/* CHARTS */
+.charts-row{display:grid;gap:18px;margin-bottom:18px;}
+.charts-row-2{grid-template-columns:1fr 1fr;}
+.charts-row-3{grid-template-columns:1fr 1fr 1fr;}
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;box-shadow:var(--shadow-sm);}
+.chart-card.full{grid-column:1/-1;}
+.chart-hdr{margin-bottom:16px;}
+.chart-title{font-size:14px;font-weight:700;color:var(--text);}
+.chart-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+.chart-wrap{position:relative;}
+.chart-wrap canvas{max-height:230px;}
+.chart-wrap-tall canvas{max-height:280px;}
+.chart-wrap-sm canvas{max-height:190px;}
+
+/* INSIGHT CARDS */
+.insight-row-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-bottom:18px;}
+.insight-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow-sm);}
+.insight-label{font-size:10px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;}
+.ins-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.ins-name{font-size:13px;color:var(--text2);font-weight:500;}
+.ins-val{font-size:12px;font-weight:700;font-family:var(--mono);}
+.prog-wrap{height:5px;background:var(--border);border-radius:3px;margin-bottom:10px;overflow:hidden;}
+.prog-bar{height:100%;border-radius:3px;transition:width .6s ease;}
+
+/* REPORTS PAGE */
+.reports-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:28px;}
+.report-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:10px;}
+.report-icon{font-size:28px;}
+.report-title{font-size:14px;font-weight:700;color:var(--text);}
+.report-desc{font-size:12px;color:var(--muted);line-height:1.6;flex:1;}
+.report-btns{display:flex;gap:8px;margin-top:4px;}
+.rbtn{display:flex;align-items:center;gap:5px;padding:7px 14px;border-radius:7px;font-family:var(--font);font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid;transition:all .15s;}
+.rbtn-xl{background:var(--success-bg);color:#059669;border-color:#6ee7b7;}
+.rbtn-xl:hover{background:#d1fae5;}
+.rbtn-pdf{background:var(--danger-bg);color:var(--danger);border-color:#fca5a5;}
+.rbtn-pdf:hover{background:#fee2e2;}
+
+/* MODAL */
+.overlay{display:none;position:fixed;inset:0;background:rgba(17,24,39,.45);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(6px);}
+.overlay.open{display:flex;}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:14px;width:620px;max-width:95vw;max-height:90vh;overflow-y:auto;padding:36px;position:relative;box-shadow:0 24px 80px rgba(0,0,0,.18);animation:modalIn .22s cubic-bezier(.34,1.56,.64,1);}
+@keyframes modalIn{from{opacity:0;transform:scale(.95) translateY(12px);}to{opacity:1;transform:scale(1) translateY(0);}}
+.modal-close{position:absolute;top:18px;right:20px;background:var(--bg);border:1px solid var(--border);color:var(--muted);font-size:16px;cursor:pointer;width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.modal-close:hover{background:var(--danger-bg);color:var(--danger);border-color:#fca5a5;}
+.modal-header{margin-bottom:24px;}
+.modal-header h2{font-size:20px;font-weight:800;margin-bottom:8px;}
+.modal-meta{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.section-label{font-size:11px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+.section-value{font-size:14px;color:var(--text2);line-height:1.65;}
+.field-block{margin-bottom:20px;}
+.remark-box{background:#f8f9fc;border:1px solid var(--border);border-radius:8px;padding:16px;font-size:13px;line-height:1.75;color:var(--text2);}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-grid .full{grid-column:1/-1;}
+.f-label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;}
+.f-input,.f-select,.f-textarea{width:100%;background:var(--bg);border:1.5px solid var(--border);padding:9px 13px;border-radius:8px;color:var(--text);font-family:var(--font);font-size:13.5px;outline:none;transition:border-color .2s,box-shadow .2s;}
+.f-input:focus,.f-select:focus,.f-textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,110,247,.12);background:#fff;}
+.f-textarea{resize:vertical;min-height:82px;line-height:1.6;}
+.f-select option{background:#fff;}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:24px;padding-top:20px;border-top:1px solid var(--border);}
+.btn-ghost{background:none;border:1.5px solid var(--border);color:var(--muted);padding:9px 18px;border-radius:8px;font-family:var(--font);font-size:13.5px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-ghost:hover{border-color:var(--text2);color:var(--text);}
+.btn-primary{background:var(--accent);color:#fff;border:none;padding:9px 22px;border-radius:8px;font-family:var(--font);font-size:13.5px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(79,110,247,.3);transition:all .15s;}
+.btn-primary:hover{background:var(--accent-hover);}
+.btn-del{background:var(--danger-bg);color:var(--danger);border:1.5px solid #fca5a5;padding:9px 16px;border-radius:8px;font-family:var(--font);font-size:13.5px;font-weight:600;cursor:pointer;}
+
+.toast{position:fixed;bottom:28px;right:28px;z-index:999;background:#1a1d27;color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:10px;box-shadow:0 8px 32px rgba(0,0,0,.25);animation:toastIn .25s cubic-bezier(.34,1.56,.64,1);transition:opacity .35s;}
+.toast.success::before{content:'✓';background:var(--success);color:#fff;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+.toast.error::before{content:'✕';background:var(--danger);color:#fff;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+@keyframes toastIn{from{opacity:0;transform:translateY(16px) scale(.95);}to{opacity:1;transform:translateY(0) scale(1);}}
+::-webkit-scrollbar{width:5px;height:5px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;}
+/* ── IMAGE UPLOAD ── */
+.img-upload-area{border:2px dashed var(--border2);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg);position:relative;}
+.img-upload-area:hover,.img-upload-area.drag-over{border-color:var(--accent);background:var(--accent-light);}
+.img-upload-area input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.img-upload-icon{font-size:24px;margin-bottom:6px;}
+.img-upload-text{font-size:12px;color:var(--muted);font-weight:500;}
+.img-upload-text strong{color:var(--accent);}
+.img-previews{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+.img-thumb{position:relative;width:72px;height:72px;border-radius:8px;overflow:hidden;border:1.5px solid var(--border);box-shadow:var(--shadow-sm);}
+.img-thumb img{width:100%;height:100%;object-fit:cover;}
+.img-thumb-rm{position:absolute;top:2px;right:2px;background:rgba(17,24,39,.7);color:#fff;border:none;border-radius:4px;width:18px;height:18px;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;}
+.img-thumb-rm:hover{background:var(--danger);}
+.view-images{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;}
+.view-img-wrap{border-radius:10px;overflow:hidden;border:1.5px solid var(--border);cursor:pointer;transition:transform .15s;max-width:100%;}
+.view-img-wrap:hover{transform:scale(1.02);}
+.view-img-wrap img{display:block;max-width:260px;max-height:180px;object-fit:cover;}
+/* lightbox */
+.lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;align-items:center;justify-content:center;cursor:zoom-out;}
+.lightbox.open{display:flex;}
+.lightbox img{max-width:90vw;max-height:90vh;border-radius:10px;box-shadow:0 24px 80px rgba(0,0,0,.5);}
+
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>
+      </div>
+      <div class="logo-text-wrap">
+        <div class="logo-text">Bug<span>Track</span></div>
+        <div class="logo-tagline">Issue Tracker</div>
+      </div>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Menu</div>
+    <button class="nav-btn" id="nav-dashboard" onclick="showPage('dashboard')">
+      <span class="nav-label"><span class="nav-icon">📊</span>Dashboard</span>
+    </button>
+    <button class="nav-btn active" id="nav-issues" onclick="showPage('issues')">
+      <span class="nav-label"><span class="nav-icon">🐛</span>All Issues</span>
+      <span class="nav-count" id="cnt-total">0</span>
+    </button>
+    <button class="nav-btn" id="nav-reports" onclick="showPage('reports')">
+      <span class="nav-label"><span class="nav-icon">📁</span>Reports & Export</span>
+    </button>
+    <hr class="nav-divider"/>
+    <div class="nav-section-label">Clients</div>
+    <div id="clientList"></div>
+    <hr class="nav-divider"/>
+    <div class="nav-section-label">Status</div>
+    <div id="statusFilters">
+      <button class="nav-btn active" data-status="all"><span class="nav-label"><span class="status-dot sd-all"></span>All</span><span class="nav-count" id="cnt-all">0</span></button>
+      <button class="nav-btn" data-status="Open"><span class="nav-label"><span class="status-dot sd-open"></span>Open</span><span class="nav-count" id="cnt-open">0</span></button>
+      <button class="nav-btn" data-status="Under Observation"><span class="nav-label"><span class="status-dot sd-obs"></span>Observation</span><span class="nav-count" id="cnt-obs">0</span></button>
+      <button class="nav-btn" data-status="Closed"><span class="nav-label"><span class="status-dot sd-closed"></span>Closed</span><span class="nav-count" id="cnt-closed">0</span></button>
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-footer-text">BugTrack v3.0</div>
+    <div class="sidebar-footer-text" style="margin-top:4px;">Developed by <span style="color:rgba(165,180,252,.6);font-weight:600;">Ajay Singh Bisht</span></div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main-wrap">
+  <header class="topbar">
+    <div class="topbar-title" id="topbarTitle">Issues</div>
+    <div class="stat-chips" id="statChips"></div>
+    <button class="btn-new" onclick="openAddModal()">＋ &nbsp;New Issue</button>
+  </header>
+
+  <!-- ══ DASHBOARD PAGE ══ -->
+  <div class="page" id="page-dashboard">
+    <div class="dash-topbar">
+      <div>
+        <h1>Dashboard</h1>
+        <p>Live insights from your bug &amp; issue tracker</p>
+      </div>
+      <div class="filter-row">
+        <select class="filter-select" id="dashClientFilter" onchange="renderDashboard()">
+          <option value="all">All Clients</option>
+        </select>
+        <div class="export-group">
+          <button class="btn-export btn-xl" onclick="exportDashboardExcel()">📊 Excel</button>
+          <button class="btn-export btn-pdf" onclick="exportDashboardPDF()">📄 PDF</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI -->
+    <div class="kpi-grid">
+      <div class="kpi-card kpi-total"><div class="kpi-label">Total Issues</div><div class="kpi-value" id="kpi-total">0</div><div class="kpi-sub">All clients</div></div>
+      <div class="kpi-card kpi-open"><div class="kpi-label">Open</div><div class="kpi-value" id="kpi-open">0</div><div class="kpi-sub">Needs attention</div></div>
+      <div class="kpi-card kpi-obs"><div class="kpi-label">Observation</div><div class="kpi-value" id="kpi-obs">0</div><div class="kpi-sub">Being monitored</div></div>
+      <div class="kpi-card kpi-closed"><div class="kpi-label">Closed</div><div class="kpi-value" id="kpi-closed">0</div><div class="kpi-sub">Resolved</div></div>
+      <div class="kpi-card kpi-rate"><div class="kpi-label">Resolution Rate</div><div class="kpi-value" id="kpi-rate">0%</div><div class="kpi-sub">Closed / Total</div></div>
+    </div>
+
+    <!-- Row 1: Doughnut + Bar + Line -->
+    <div class="charts-row charts-row-3">
+      <div class="chart-card">
+        <div class="chart-hdr"><div class="chart-title">Status Breakdown</div><div class="chart-sub">Overall issue distribution</div></div>
+        <div class="chart-wrap" style="display:flex;justify-content:center;"><canvas id="cStatus" style="max-height:200px;max-width:200px;"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-hdr"><div class="chart-title">Issues per Client</div><div class="chart-sub">Total count by client</div></div>
+        <div class="chart-wrap"><canvas id="cClient"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-hdr"><div class="chart-title">Issues Over Time</div><div class="chart-sub">Monthly reporting trend</div></div>
+        <div class="chart-wrap"><canvas id="cTimeline"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Row 2: Stacked + Horizontal -->
+    <div class="charts-row charts-row-2">
+      <div class="chart-card">
+        <div class="chart-hdr"><div class="chart-title">Status by Client</div><div class="chart-sub">Stacked comparison</div></div>
+        <div class="chart-wrap chart-wrap-tall"><canvas id="cStacked"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-hdr"><div class="chart-title">Open vs Closed by Client</div><div class="chart-sub">Grouped bar comparison</div></div>
+        <div class="chart-wrap chart-wrap-tall"><canvas id="cGrouped"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Row 3: Polar + Radar + Issues by reporter -->
+    <div class="charts-row charts-row-3">
+      <div class="chart-card">
+        <div class="chart-hdr"><div class="chart-title">Status Polar Area</div><div class="chart-sub">Area weighted view</div></div>
+        <div class="chart-wrap" style="display:flex;justify-content:center;"><canvas id="cPolar" style="max-height:200px;max-width:200px;"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-hdr"><div class="chart-title">Issues by Reporter</div><div class="chart-sub">Who reports most</div></div>
+        <div class="chart-wrap chart-wrap-sm"><canvas id="cReporter"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-hdr"><div class="chart-title">Resolution % by Client</div><div class="chart-sub">Closed issues percentage</div></div>
+        <div class="chart-wrap chart-wrap-sm"><canvas id="cResRate"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Insight Cards -->
+    <div class="insight-row-grid">
+      <div class="insight-card">
+        <div class="insight-label">🏆 Resolution Rate by Client</div>
+        <div id="insResolution"></div>
+      </div>
+      <div class="insight-card">
+        <div class="insight-label">👤 Top Reporters</div>
+        <div id="insReporters"></div>
+      </div>
+      <div class="insight-card">
+        <div class="insight-label">🏷 Common Issue Keywords</div>
+        <div id="insKeywords"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ISSUES PAGE ══ -->
+  <div class="page active" id="page-issues">
+    <div class="search-bar">
+      <span style="color:var(--muted2);font-size:16px;">🔍</span>
+      <input type="text" id="searchInput" placeholder="Search by title, client, reporter, description…"/>
+    </div>
+    <div class="table-card">
+      <table>
+        <thead><tr><th>ID</th><th>Issue</th><th>Client</th><th>Reporter</th><th>Reported Date</th><th>Resolved Date</th><th>Status</th></tr></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+      <div class="empty-state" id="emptyState" style="display:none"><div class="empty-icon">🔍</div><p>No issues match your filters.</p></div>
+    </div>
+  </div>
+
+  <!-- ══ REPORTS PAGE ══ -->
+  <div class="page" id="page-reports">
+    <div class="dash-topbar" style="margin-bottom:28px;">
+      <div><h1>Reports &amp; Export</h1><p>Download detailed reports in Excel or PDF format</p></div>
+    </div>
+    <div class="reports-grid">
+
+      <div class="report-card">
+        <div class="report-icon">📋</div>
+        <div class="report-title">All Issues — Full Report</div>
+        <div class="report-desc">Complete list of all issues with ID, title, description, client, reporter, date, status, and remarks.</div>
+        <div class="report-btns">
+          <button class="rbtn rbtn-xl" onclick="rpt_allIssues('excel')">📊 Excel</button>
+          <button class="rbtn rbtn-pdf" onclick="rpt_allIssues('pdf')">📄 PDF</button>
+        </div>
+      </div>
+
+      <div class="report-card">
+        <div class="report-icon">🏢</div>
+        <div class="report-title">Client-Wise Report</div>
+        <div class="report-desc">Issues grouped by client with subtotals, status breakdown, and individual issue details per client.</div>
+        <div class="report-btns">
+          <button class="rbtn rbtn-xl" onclick="rpt_clientWise('excel')">📊 Excel</button>
+          <button class="rbtn rbtn-pdf" onclick="rpt_clientWise('pdf')">📄 PDF</button>
+        </div>
+      </div>
+
+      <div class="report-card">
+        <div class="report-icon">🔴</div>
+        <div class="report-title">Open Issues Report</div>
+        <div class="report-desc">All currently open issues that need immediate attention, sorted by date reported.</div>
+        <div class="report-btns">
+          <button class="rbtn rbtn-xl" onclick="rpt_byStatus('Open','excel')">📊 Excel</button>
+          <button class="rbtn rbtn-pdf" onclick="rpt_byStatus('Open','pdf')">📄 PDF</button>
+        </div>
+      </div>
+
+      <div class="report-card">
+        <div class="report-icon">🟡</div>
+        <div class="report-title">Under Observation Report</div>
+        <div class="report-desc">Issues currently under observation — resolved but being monitored for recurrence.</div>
+        <div class="report-btns">
+          <button class="rbtn rbtn-xl" onclick="rpt_byStatus('Under Observation','excel')">📊 Excel</button>
+          <button class="rbtn rbtn-pdf" onclick="rpt_byStatus('Under Observation','pdf')">📄 PDF</button>
+        </div>
+      </div>
+
+      <div class="report-card">
+        <div class="report-icon">✅</div>
+        <div class="report-title">Closed Issues Report</div>
+        <div class="report-desc">All resolved and closed issues with resolution remarks and closure dates.</div>
+        <div class="report-btns">
+          <button class="rbtn rbtn-xl" onclick="rpt_byStatus('Closed','excel')">📊 Excel</button>
+          <button class="rbtn rbtn-pdf" onclick="rpt_byStatus('Closed','pdf')">📄 PDF</button>
+        </div>
+      </div>
+
+      <div class="report-card">
+        <div class="report-icon">📊</div>
+        <div class="report-title">Summary / Analytics Report</div>
+        <div class="report-desc">High-level summary with KPIs, client-wise counts, status breakdown, and resolution rates.</div>
+        <div class="report-btns">
+          <button class="rbtn rbtn-xl" onclick="rpt_summary('excel')">📊 Excel</button>
+          <button class="rbtn rbtn-pdf" onclick="rpt_summary('pdf')">📄 PDF</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Per-client export section -->
+    <div class="chart-card" style="margin-bottom:20px;">
+      <div class="chart-hdr"><div class="chart-title">Export by Specific Client</div><div class="chart-sub">Select a client and download their issues only</div></div>
+      <div style="display:flex;gap:12px;align-items:center;margin-top:12px;flex-wrap:wrap;">
+        <select class="f-select" id="rptClientSelect" style="width:220px;"></select>
+        <button class="rbtn rbtn-xl" onclick="rpt_singleClient('excel')">📊 Excel</button>
+        <button class="rbtn rbtn-pdf" onclick="rpt_singleClient('pdf')">📄 PDF</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW MODAL -->
+<div class="overlay" id="viewOverlay" onclick="bgClose(event,'viewOverlay')">
+  <div class="modal"><button class="modal-close" onclick="closeView()">✕</button><div id="viewContent"></div></div>
+</div>
+<!-- ADD MODAL -->
+<div class="overlay" id="addOverlay" onclick="bgClose(event,'addOverlay')">
+  <div class="modal">
+    <button class="modal-close" onclick="closeAdd()">✕</button>
+    <div class="modal-header"><h2>New Issue</h2></div>
+    <div class="form-grid">
+      <div><label class="f-label">Client Name *</label><input class="f-input" id="f_client" placeholder="e.g. SKH SMC"/></div>
+      <div><label class="f-label">Reporter *</label><input class="f-input" id="f_reporter" placeholder="Full name"/></div>
+      <div class="full"><label class="f-label">Issue Title *</label><input class="f-input" id="f_title" placeholder="Brief descriptive title"/></div>
+      <div class="full"><label class="f-label">Detailed Description</label><textarea class="f-textarea" id="f_desc" placeholder="Describe the bug or issue…"></textarea></div>
+      <div><label class="f-label">Status</label>
+        <select class="f-select" id="f_status"><option value="Open">Open</option><option value="Under Observation">Under Observation</option><option value="Closed">Closed</option></select>
+      </div>
+      <div><label class="f-label">Reported Date</label><input class="f-input" type="date" id="f_date"/></div>
+      <div><label class="f-label">Resolved / Closed Date</label><input class="f-input" type="date" id="f_resolved_date"/></div>
+      <div></div>
+      <div class="full"><label class="f-label">Remarks / Notes</label><textarea class="f-textarea" id="f_remark" placeholder="Action taken or notes…"></textarea></div>
+      <div class="full">
+        <label class="f-label">Attach Images</label>
+        <div class="img-upload-area" id="f_drop" ondragover="imgDragOver(event,'f_drop')" ondragleave="imgDragLeave('f_drop')" ondrop="imgDrop(event,'f_previews','f_imgs')">
+          <input type="file" accept="image/*" multiple onchange="imgSelected(this,'f_previews','f_imgs')"/>
+          <div class="img-upload-icon">🖼</div>
+          <div class="img-upload-text"><strong>Click or drag</strong> images here (PNG, JPG, GIF…)</div>
+        </div>
+        <div class="img-previews" id="f_previews"></div>
+        <input type="hidden" id="f_imgs" value="[]"/>
+      </div>
+    </div>
+    <div class="modal-actions"><button class="btn-ghost" onclick="closeAdd()">Cancel</button><button class="btn-primary" onclick="saveIssue()">Save Issue</button></div>
+  </div>
+</div>
+<!-- EDIT MODAL -->
+<div class="overlay" id="editOverlay" onclick="bgClose(event,'editOverlay')">
+  <div class="modal">
+    <button class="modal-close" onclick="closeEdit()">✕</button>
+    <div class="modal-header"><h2>Edit Issue</h2></div>
+    <input type="hidden" id="e_id"/>
+    <div class="form-grid">
+      <div><label class="f-label">Client Name</label><input class="f-input" id="e_client"/></div>
+      <div><label class="f-label">Reporter</label><input class="f-input" id="e_reporter"/></div>
+      <div class="full"><label class="f-label">Issue Title</label><input class="f-input" id="e_title"/></div>
+      <div class="full"><label class="f-label">Detailed Description</label><textarea class="f-textarea" id="e_desc"></textarea></div>
+      <div><label class="f-label">Status</label>
+        <select class="f-select" id="e_status"><option value="Open">Open</option><option value="Under Observation">Under Observation</option><option value="Closed">Closed</option></select>
+      </div>
+      <div><label class="f-label">Reported Date</label><input class="f-input" type="date" id="e_date"/></div>
+      <div><label class="f-label">Resolved / Closed Date</label><input class="f-input" type="date" id="e_resolved_date"/></div>
+      <div></div>
+      <div class="full"><label class="f-label">Remarks / Notes</label><textarea class="f-textarea" id="e_remark"></textarea></div>
+      <div class="full">
+        <label class="f-label">Attach Images</label>
+        <div class="img-upload-area" id="e_drop" ondragover="imgDragOver(event,'e_drop')" ondragleave="imgDragLeave('e_drop')" ondrop="imgDrop(event,'e_previews','e_imgs')">
+          <input type="file" accept="image/*" multiple onchange="imgSelected(this,'e_previews','e_imgs')"/>
+          <div class="img-upload-icon">🖼</div>
+          <div class="img-upload-text"><strong>Click or drag</strong> to add more images</div>
+        </div>
+        <div class="img-previews" id="e_previews"></div>
+        <input type="hidden" id="e_imgs" value="[]"/>
+      </div>
+    </div>
+    <div class="modal-actions"><button class="btn-ghost" onclick="closeEdit()">Cancel</button><button class="btn-primary" onclick="updateIssue()">Update Issue</button></div>
+  </div>
+</div>
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox" onclick="this.classList.remove('open')"><img id="lightboxImg"/></div>
+
+<script>
+const API='/api/issues';
+let issues=[];
+let activeClient='all', activeStatus='all', searchQ='';
+let currentPage='issues';
+let charts={};
+
+// ── IMAGE HELPERS ─────────────────────────────
+function imgDragOver(e,id){e.preventDefault();document.getElementById(id).classList.add('drag-over');}
+function imgDragLeave(id){document.getElementById(id).classList.remove('drag-over');}
+function imgDrop(e,previewId,hiddenId){e.preventDefault();document.getElementById(e.currentTarget.id).classList.remove('drag-over');processImgFiles(e.dataTransfer.files,previewId,hiddenId);}
+function imgSelected(input,previewId,hiddenId){processImgFiles(input.files,previewId,hiddenId);input.value='';}
+function processImgFiles(files,previewId,hiddenId){
+  const existing=JSON.parse(document.getElementById(hiddenId).value||'[]');
+  Array.from(files).forEach(f=>{
+    if(!f.type.startsWith('image/'))return;
+    const r=new FileReader();
+    r.onload=ev=>{
+      existing.push(ev.target.result);
+      document.getElementById(hiddenId).value=JSON.stringify(existing);
+      renderImgPreviews(existing,previewId,hiddenId);
+    };
+    r.readAsDataURL(f);
+  });
+}
+function renderImgPreviews(imgs,previewId,hiddenId){
+  document.getElementById(previewId).innerHTML=imgs.map((src,i)=>`
+    <div class="img-thumb">
+      <img src="${src}" alt="img ${i+1}"/>
+      <button class="img-thumb-rm" onclick="removeImg(${i},'${previewId}','${hiddenId}')">✕</button>
+    </div>`).join('');
+}
+function removeImg(idx,previewId,hiddenId){
+  const imgs=JSON.parse(document.getElementById(hiddenId).value||'[]');
+  imgs.splice(idx,1);
+  document.getElementById(hiddenId).value=JSON.stringify(imgs);
+  renderImgPreviews(imgs,previewId,hiddenId);
+}
+function openLightbox(src){document.getElementById('lightboxImg').src=src;document.getElementById('lightbox').classList.add('open');}
+
+// ── API ──────────────────────────────────────
+async function fetchIssues(){
+  try{const r=await fetch(API);issues=await r.json();renderAll();}
+  catch(e){toast('Cannot connect to server!','error');}
+}
+async function apiPost(d){const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});return r.json();}
+async function apiPut(id,d){const r=await fetch(`${API}/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});return r.json();}
+async function apiDelete(id){await fetch(`${API}/${id}`,{method:'DELETE'});}
+
+// ── HELPERS ──────────────────────────────────
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function fmtDate(d){if(!d)return'—';const dt=new Date(d);return isNaN(dt)?d:dt.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});}
+function badge(s){
+  if(s==='Open')return`<span class="badge badge-open"><span class="status-dot sd-open"></span>Open</span>`;
+  if(s==='Under Observation')return`<span class="badge badge-obs"><span class="status-dot sd-obs"></span>Observation</span>`;
+  return`<span class="badge badge-closed"><span class="status-dot sd-closed"></span>Closed</span>`;
+}
+function filtered(){
+  return issues.filter(i=>{
+    if(activeClient!=='all'&&i.client!==activeClient)return false;
+    if(activeStatus!=='all'&&i.status!==activeStatus)return false;
+    if(searchQ){const h=`${i.title} ${i.client} ${i.reporter} ${i.desc}`.toLowerCase();if(!h.includes(searchQ))return false;}
+    return true;
+  });
+}
+function clients(){return[...new Set(issues.map(i=>i.client))];}
+function mkChart(id,type,data,opts){
+  if(charts[id])charts[id].destroy();
+  const ctx=document.getElementById(id);
+  if(!ctx)return;
+  charts[id]=new Chart(ctx.getContext('2d'),{type,data,options:{responsive:true,plugins:{legend:{labels:{font:{family:'Plus Jakarta Sans',size:11}}}},scales:{},...opts}});
+  return charts[id];
+}
+
+// ── PAGE NAV ─────────────────────────────────
+function showPage(p){
+  currentPage=p;
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  ['dashboard','issues','reports'].forEach(x=>document.getElementById('nav-'+x).classList.toggle('active',x===p));
+  const titles={dashboard:'Dashboard',issues:'Issues',reports:'Reports & Export'};
+  document.getElementById('topbarTitle').textContent=titles[p];
+  if(p==='dashboard')renderDashboard();
+  if(p==='reports')renderReportsPage();
+}
+
+// ── RENDER ALL ────────────────────────────────
+function renderAll(){renderSidebar();renderTopbar();renderTable();if(currentPage==='dashboard')renderDashboard();}
+
+function renderTopbar(){
+  const open=issues.filter(i=>i.status==='Open').length;
+  const obs=issues.filter(i=>i.status==='Under Observation').length;
+  const cls=issues.filter(i=>i.status==='Closed').length;
+  document.getElementById('statChips').innerHTML=`
+    <span class="chip chip-open">● ${open} Open</span>
+    <span class="chip chip-obs">● ${obs} Obs</span>
+    <span class="chip chip-closed">● ${cls} Closed</span>`;
+}
+
+function renderSidebar(){
+  const cl=clients();
+  // populate dashboard filter
+  const df=document.getElementById('dashClientFilter');
+  if(df){df.innerHTML='<option value="all">All Clients</option>'+cl.map(c=>`<option value="${c}">${c}</option>`).join('');}
+  document.getElementById('clientList').innerHTML=['all',...cl].map(c=>{
+    const cnt=c==='all'?issues.length:issues.filter(i=>i.client===c).length;
+    const icon=c==='all'?'🏢':c.includes('Seating')?'🪑':c.includes('Plastics')?'🏭':'🏗';
+    return`<button class="nav-btn ${activeClient===c?'active':''}" onclick="setClient('${c}')">
+      <span class="nav-label"><span class="nav-icon">${icon}</span>${c==='all'?'All Clients':c}</span>
+      <span class="nav-count">${cnt}</span></button>`;
+  }).join('');
+  document.getElementById('cnt-total').textContent=issues.length;
+  document.getElementById('cnt-all').textContent=issues.length;
+  document.getElementById('cnt-open').textContent=issues.filter(i=>i.status==='Open').length;
+  document.getElementById('cnt-obs').textContent=issues.filter(i=>i.status==='Under Observation').length;
+  document.getElementById('cnt-closed').textContent=issues.filter(i=>i.status==='Closed').length;
+  document.querySelectorAll('#statusFilters .nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.status===activeStatus));
+}
+
+function renderTable(){
+  const rows=filtered();
+  document.getElementById('emptyState').style.display=rows.length?'none':'block';
+  document.getElementById('tableBody').innerHTML=rows.map(i=>`
+    <tr class="issue-row" onclick="viewIssue(${i.id})">
+      <td class="id-cell">#${i.id}</td>
+      <td><div class="title-wrap"><div class="t-title">${esc(i.title)}${i.images&&i.images.length?` <span title="${i.images.length} image(s)" style="font-size:11px;vertical-align:middle;opacity:.6;">🖼</span>`:''}
+</div><div class="t-desc">${esc(i.desc||'')}</div></div></td>
+      <td><span class="client-pill">${esc(i.client)}</span></td>
+      <td class="reporter-cell">${esc(i.reporter)}</td>
+      <td class="date-cell">${fmtDate(i.date)}</td>
+      <td class="date-cell">${i.resolved_date?fmtDate(i.resolved_date):'<span style="color:var(--muted2);font-size:11px;">—</span>'}</td>
+      <td>${badge(i.status)}</td>
+    </tr>`).join('');
+}
+
+function setClient(c){activeClient=c;renderAll();}
+document.getElementById('statusFilters').addEventListener('click',e=>{const b=e.target.closest('.nav-btn');if(b){activeStatus=b.dataset.status;renderAll();}});
+document.getElementById('searchInput').addEventListener('input',e=>{searchQ=e.target.value.toLowerCase();renderTable();});
+
+// ── DASHBOARD ────────────────────────────────
+function renderDashboard(){
+  const cf=document.getElementById('dashClientFilter');
+  const filterClient=cf?cf.value:'all';
+  const src=filterClient==='all'?issues:issues.filter(i=>i.client===filterClient);
+  const cl=filterClient==='all'?clients():[filterClient];
+  const total=src.length;
+  const open=src.filter(i=>i.status==='Open').length;
+  const obs=src.filter(i=>i.status==='Under Observation').length;
+  const closed=src.filter(i=>i.status==='Closed').length;
+  const rate=total?Math.round(closed/total*100):0;
+
+  document.getElementById('kpi-total').textContent=total;
+  document.getElementById('kpi-open').textContent=open;
+  document.getElementById('kpi-obs').textContent=obs;
+  document.getElementById('kpi-closed').textContent=closed;
+  document.getElementById('kpi-rate').textContent=rate+'%';
+
+  const COLORS={open:'#f87171',obs:'#fbbf24',closed:'#34d399'};
+  const BG={open:'rgba(248,113,113,.15)',obs:'rgba(251,191,36,.15)',closed:'rgba(52,211,153,.15)'};
+
+  // 1. Doughnut — status
+  mkChart('cStatus','doughnut',{
+    labels:['Open','Observation','Closed'],
+    datasets:[{data:[open,obs,closed],backgroundColor:['#fca5a5','#fcd34d','#6ee7b7'],borderColor:['#ef4444','#f59e0b','#10b981'],borderWidth:2,hoverOffset:8}]
+  },{plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>`${c.label}: ${c.parsed} (${total?Math.round(c.parsed/total*100):0}%)`}}},cutout:'62%',scales:{}});
+
+  // 2. Bar — per client
+  mkChart('cClient','bar',{
+    labels:cl,
+    datasets:[{label:'Issues',data:cl.map(c=>src.filter(i=>i.client===c).length),backgroundColor:'rgba(79,110,247,.2)',borderColor:'#4f6ef7',borderWidth:2,borderRadius:6,borderSkipped:false}]
+  },{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1,font:{family:'DM Mono',size:11}},grid:{color:'rgba(0,0,0,.05)'}},x:{ticks:{font:{family:'Plus Jakarta Sans',size:11}},grid:{display:false}}}});
+
+  // 3. Line — monthly trend
+  const dMap={};
+  src.forEach(i=>{if(i.date){const m=i.date.substring(0,7);dMap[m]=(dMap[m]||0)+1;}});
+  const months=Object.keys(dMap).sort();
+  mkChart('cTimeline','line',{
+    labels:months,
+    datasets:[{label:'Issues',data:months.map(m=>dMap[m]),fill:true,backgroundColor:'rgba(79,110,247,.08)',borderColor:'#4f6ef7',borderWidth:2.5,pointBackgroundColor:'#4f6ef7',pointRadius:5,tension:.35}]
+  },{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1,font:{family:'DM Mono',size:11}},grid:{color:'rgba(0,0,0,.05)'}},x:{ticks:{font:{family:'Plus Jakarta Sans',size:11}},grid:{display:false}}}});
+
+  // 4. Stacked bar
+  mkChart('cStacked','bar',{
+    labels:cl,
+    datasets:[
+      {label:'Open',data:cl.map(c=>src.filter(i=>i.client===c&&i.status==='Open').length),backgroundColor:'#fca5a5',borderColor:'#ef4444',borderWidth:1.5,borderRadius:4},
+      {label:'Observation',data:cl.map(c=>src.filter(i=>i.client===c&&i.status==='Under Observation').length),backgroundColor:'#fcd34d',borderColor:'#f59e0b',borderWidth:1.5},
+      {label:'Closed',data:cl.map(c=>src.filter(i=>i.client===c&&i.status==='Closed').length),backgroundColor:'#6ee7b7',borderColor:'#10b981',borderWidth:1.5}
+    ]
+  },{plugins:{legend:{position:'bottom',labels:{font:{family:'Plus Jakarta Sans',size:11}}}},scales:{x:{stacked:true,ticks:{font:{family:'Plus Jakarta Sans',size:11}},grid:{display:false}},y:{stacked:true,beginAtZero:true,ticks:{stepSize:1,font:{family:'DM Mono',size:11}},grid:{color:'rgba(0,0,0,.05)'}}}});
+
+  // 5. Grouped bar
+  mkChart('cGrouped','bar',{
+    labels:cl,
+    datasets:[
+      {label:'Open',data:cl.map(c=>src.filter(i=>i.client===c&&i.status==='Open').length),backgroundColor:'rgba(239,68,68,.7)',borderColor:'#ef4444',borderWidth:1.5,borderRadius:5},
+      {label:'Observation',data:cl.map(c=>src.filter(i=>i.client===c&&i.status==='Under Observation').length),backgroundColor:'rgba(245,158,11,.7)',borderColor:'#f59e0b',borderWidth:1.5,borderRadius:5},
+      {label:'Closed',data:cl.map(c=>src.filter(i=>i.client===c&&i.status==='Closed').length),backgroundColor:'rgba(16,185,129,.7)',borderColor:'#10b981',borderWidth:1.5,borderRadius:5}
+    ]
+  },{plugins:{legend:{position:'bottom',labels:{font:{family:'Plus Jakarta Sans',size:11}}}},scales:{x:{ticks:{font:{family:'Plus Jakarta Sans',size:11}},grid:{display:false}},y:{beginAtZero:true,ticks:{stepSize:1,font:{family:'DM Mono',size:11}},grid:{color:'rgba(0,0,0,.05)'}}}});
+
+  // 6. Polar area
+  mkChart('cPolar','polarArea',{
+    labels:['Open','Observation','Closed'],
+    datasets:[{data:[open,obs,closed],backgroundColor:['rgba(248,113,113,.6)','rgba(251,191,36,.6)','rgba(52,211,153,.6)'],borderColor:['#ef4444','#f59e0b','#10b981'],borderWidth:2}]
+  },{plugins:{legend:{position:'bottom',labels:{font:{family:'Plus Jakarta Sans',size:11}}}},scales:{}});
+
+  // 7. Horizontal bar — reporters
+  const repMap={};
+  src.forEach(i=>{repMap[i.reporter]=(repMap[i.reporter]||0)+1;});
+  const reps=Object.entries(repMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  mkChart('cReporter','bar',{
+    labels:reps.map(r=>r[0]),
+    datasets:[{label:'Issues Reported',data:reps.map(r=>r[1]),backgroundColor:'rgba(139,92,246,.2)',borderColor:'#8b5cf6',borderWidth:2,borderRadius:6,borderSkipped:false}]
+  },{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{stepSize:1,font:{family:'DM Mono',size:11}},grid:{color:'rgba(0,0,0,.05)'}},y:{ticks:{font:{family:'Plus Jakarta Sans',size:11}},grid:{display:false}}}});
+
+  // 8. Resolution rate bar
+  const rrates=cl.map(c=>{const t=src.filter(i=>i.client===c).length;const cls2=src.filter(i=>i.client===c&&i.status==='Closed').length;return t?Math.round(cls2/t*100):0;});
+  mkChart('cResRate','bar',{
+    labels:cl,
+    datasets:[{label:'Resolution %',data:rrates,backgroundColor:rrates.map(r=>r>=70?'rgba(16,185,129,.25)':r>=40?'rgba(245,158,11,.25)':'rgba(239,68,68,.25)'),borderColor:rrates.map(r=>r>=70?'#10b981':r>=40?'#f59e0b':'#ef4444'),borderWidth:2,borderRadius:6,borderSkipped:false}]
+  },{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:100,ticks:{callback:v=>v+'%',font:{family:'DM Mono',size:11}},grid:{color:'rgba(0,0,0,.05)'}},x:{ticks:{font:{family:'Plus Jakarta Sans',size:11}},grid:{display:false}}}});
+
+  // Insight panels
+  const maxCnt=Math.max(...cl.map(c=>src.filter(i=>i.client===c).length),1);
+  document.getElementById('insResolution').innerHTML=cl.map(c=>{
+    const t=src.filter(i=>i.client===c).length; const cls2=src.filter(i=>i.client===c&&i.status==='Closed').length;
+    const pct=t?Math.round(cls2/t*100):0;
+    const col=pct>=70?'var(--success)':pct>=40?'var(--warn)':'var(--danger)';
+    return`<div class="ins-row"><span class="ins-name">${c}</span><span class="ins-val" style="color:${col}">${pct}%</span></div>
+    <div class="prog-wrap"><div class="prog-bar" style="width:${pct}%;background:${col}"></div></div>`;
+  }).join('');
+
+  const maxR=reps[0]?reps[0][1]:1;
+  document.getElementById('insReporters').innerHTML=reps.map(([n,cnt])=>`
+    <div class="ins-row"><span class="ins-name">👤 ${esc(n)}</span><span class="ins-val" style="color:var(--accent)">${cnt}</span></div>
+    <div class="prog-wrap"><div class="prog-bar" style="width:${Math.round(cnt/maxR*100)}%;background:var(--accent)"></div></div>`).join('');
+
+  const kws=['Data','UI','Report','Missing','Shift','Planning','Password','Widget','Screen','Response'];
+  const kwList=kws.map(k=>({k,cnt:src.filter(i=>(i.title+' '+i.desc).toLowerCase().includes(k.toLowerCase())).length})).filter(x=>x.cnt>0).sort((a,b)=>b.cnt-a.cnt).slice(0,7);
+  const maxK=kwList[0]?kwList[0].cnt:1;
+  document.getElementById('insKeywords').innerHTML=kwList.map(({k,cnt})=>`
+    <div class="ins-row"><span class="ins-name">🏷 ${k}</span><span class="ins-val" style="color:var(--warn)">${cnt}</span></div>
+    <div class="prog-wrap"><div class="prog-bar" style="width:${Math.round(cnt/maxK*100)}%;background:var(--warn)"></div></div>`).join('');
+}
+
+// ── REPORTS PAGE ─────────────────────────────
+function renderReportsPage(){
+  const sel=document.getElementById('rptClientSelect');
+  if(sel){sel.innerHTML=clients().map(c=>`<option value="${c}">${c}</option>`).join('');}
+}
+
+// ── EXPORT HELPERS ────────────────────────────
+function today(){return new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});}
+
+// Excel exports
+function toExcelSheet(data,sheetName,fileName){
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  // auto column widths
+  const cols=data[0].map((_,i)=>({wch:Math.max(...data.map(r=>String(r[i]||'').length),10)}));
+  ws['!cols']=cols;
+  XLSX.utils.book_append_sheet(wb,ws,sheetName);
+  XLSX.writeFile(wb,fileName);
+}
+
+function issueRows(list){
+  return[['#','Title','Client','Reporter','Reported Date','Resolved Date','Status','Description','Remark'],
+    ...list.map(i=>[i.id,i.title,i.client,i.reporter,fmtDate(i.date),i.resolved_date?fmtDate(i.resolved_date):'',i.status,i.desc||'',i.remark||''])];
+}
+
+function rpt_allIssues(fmt){
+  const sorted=[...issues].sort((a,b)=>a.id-b.id);
+  if(fmt==='excel'){toExcelSheet(issueRows(sorted),'All Issues',`BugTrack_All_Issues_${today()}.xlsx`);toast('Excel downloaded','success');}
+  else pdfTable('All Issues — Full Report',issueRows(sorted),`BugTrack_All_Issues_${today()}.pdf`);
+}
+
+function rpt_clientWise(fmt){
+  if(fmt==='excel'){
+    const wb=XLSX.utils.book_new();
+    clients().forEach(c=>{
+      const list=issues.filter(i=>i.client===c);
+      const rows=issueRows(list);
+      const ws=XLSX.utils.aoa_to_sheet(rows);
+      ws['!cols']=rows[0].map((_,i)=>({wch:Math.max(...rows.map(r=>String(r[i]||'').length),10)}));
+      XLSX.utils.book_append_sheet(wb,ws,c.substring(0,31));
+    });
+    XLSX.writeFile(wb,`BugTrack_ClientWise_${today()}.xlsx`);
+    toast('Excel downloaded','success');
+  } else {
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({orientation:'landscape'});
+    let y=20;
+    doc.setFont('helvetica','bold');doc.setFontSize(16);
+    doc.text('BugTrack — Client-Wise Report',14,y);y+=6;
+    doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(100);
+    doc.text(`Generated: ${today()}`,14,y);y+=10;doc.setTextColor(0);
+    clients().forEach(c=>{
+      const list=issues.filter(i=>i.client===c);
+      doc.setFont('helvetica','bold');doc.setFontSize(12);
+      doc.text(`${c}  (${list.length} issues)`,14,y);y+=4;
+      doc.autoTable({startY:y,head:[['#','Title','Reporter','Rep. Date','Res. Date','Status','Remark']],
+        body:list.map(i=>[i.id,i.title,i.reporter,fmtDate(i.date),i.resolved_date?fmtDate(i.resolved_date):'—',i.status,(i.remark||'').substring(0,60)]),
+        styles:{fontSize:8,font:'helvetica'},headStyles:{fillColor:[79,110,247]},margin:{left:14,right:14},theme:'striped'});
+      y=doc.lastAutoTable.finalY+10;
+      if(y>180){doc.addPage();y=20;}
+    });
+    doc.save(`BugTrack_ClientWise_${today()}.pdf`);
+    toast('PDF downloaded','success');
+  }
+}
+
+function rpt_byStatus(status,fmt){
+  const list=issues.filter(i=>i.status===status);
+  const label=status.replace(' ','_');
+  if(fmt==='excel'){toExcelSheet(issueRows(list),status,`BugTrack_${label}_${today()}.xlsx`);toast('Excel downloaded','success');}
+  else pdfTable(`${status} Issues`,issueRows(list),`BugTrack_${label}_${today()}.pdf`);
+}
+
+function rpt_singleClient(fmt){
+  const c=document.getElementById('rptClientSelect').value;
+  const list=issues.filter(i=>i.client===c);
+  const label=c.replace(/\s/g,'_');
+  if(fmt==='excel'){toExcelSheet(issueRows(list),c,`BugTrack_${label}_${today()}.xlsx`);toast('Excel downloaded','success');}
+  else pdfTable(`Issues — ${c}`,issueRows(list),`BugTrack_${label}_${today()}.pdf`);
+}
+
+function rpt_summary(fmt){
+  const cl=clients();
+  const rows=[
+    ['Summary Report — BugTrack','','',''],['Generated',today(),'',''],['','','',''],
+    ['OVERALL STATS','','',''],
+    ['Total Issues',issues.length,'',''],
+    ['Open',issues.filter(i=>i.status==='Open').length,'',''],
+    ['Under Observation',issues.filter(i=>i.status==='Under Observation').length,'',''],
+    ['Closed',issues.filter(i=>i.status==='Closed').length,'',''],
+    ['Resolution Rate',issues.length?Math.round(issues.filter(i=>i.status==='Closed').length/issues.length*100)+'%':'0%','',''],
+    ['','','',''],
+    ['CLIENT-WISE BREAKDOWN','','',''],
+    ['Client','Total','Open','Observation','Closed','Resolution %'],
+    ...cl.map(c=>{
+      const t=issues.filter(i=>i.client===c).length;
+      const o=issues.filter(i=>i.client===c&&i.status==='Open').length;
+      const ob=issues.filter(i=>i.client===c&&i.status==='Under Observation').length;
+      const cl2=issues.filter(i=>i.client===c&&i.status==='Closed').length;
+      return[c,t,o,ob,cl2,t?Math.round(cl2/t*100)+'%':'0%'];
+    })
+  ];
+  if(fmt==='excel'){toExcelSheet(rows,'Summary',`BugTrack_Summary_${today()}.xlsx`);toast('Excel downloaded','success');}
+  else{
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF();
+    doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text('BugTrack — Summary Report',14,20);
+    doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(100);doc.text(`Generated: ${today()}`,14,28);doc.setTextColor(0);
+    doc.setFontSize(13);doc.setFont('helvetica','bold');doc.text('Overall Statistics',14,42);
+    doc.autoTable({startY:46,head:[['Metric','Value']],
+      body:[['Total Issues',issues.length],['Open',issues.filter(i=>i.status==='Open').length],['Under Observation',issues.filter(i=>i.status==='Under Observation').length],['Closed',issues.filter(i=>i.status==='Closed').length],['Resolution Rate',issues.length?Math.round(issues.filter(i=>i.status==='Closed').length/issues.length*100)+'%':'0%']],
+      styles:{fontSize:10},headStyles:{fillColor:[79,110,247]},theme:'striped',margin:{left:14}});
+    let y=doc.lastAutoTable.finalY+12;
+    doc.setFontSize(13);doc.setFont('helvetica','bold');doc.text('Client-Wise Breakdown',14,y);y+=4;
+    doc.autoTable({startY:y,head:[['Client','Total','Open','Observation','Closed','Resolution %']],
+      body:cl.map(c=>{const t=issues.filter(i=>i.client===c).length;const o=issues.filter(i=>i.client===c&&i.status==='Open').length;const ob=issues.filter(i=>i.client===c&&i.status==='Under Observation').length;const cl2=issues.filter(i=>i.client===c&&i.status==='Closed').length;return[c,t,o,ob,cl2,t?Math.round(cl2/t*100)+'%':'0%'];}),
+      styles:{fontSize:10},headStyles:{fillColor:[16,185,129]},theme:'striped',margin:{left:14}});
+    doc.save(`BugTrack_Summary_${today()}.pdf`);
+    toast('PDF downloaded','success');
+  }
+}
+
+function exportDashboardExcel(){rpt_summary('excel');}
+function exportDashboardPDF(){rpt_summary('pdf');}
+
+// Generic PDF table
+function pdfTable(title,rows,filename){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape'});
+  doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text(`BugTrack — ${title}`,14,18);
+  doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(100);doc.text(`Generated: ${today()}`,14,25);doc.setTextColor(0);
+  doc.autoTable({startY:30,head:[rows[0]],body:rows.slice(1),styles:{fontSize:8,overflow:'linebreak'},headStyles:{fillColor:[79,110,247]},columnStyles:{6:{cellWidth:50},7:{cellWidth:50}},margin:{left:14,right:14},theme:'striped'});
+  doc.save(filename);
+  toast('PDF downloaded','success');
+}
+
+// ── CRUD ─────────────────────────────────────
+function viewIssue(id){
+  const i=issues.find(x=>x.id===id);if(!i)return;
+  const imgs=i.images&&i.images.length?`<div class="field-block"><div class="section-label">Attached Images (${i.images.length})</div><div class="view-images">${i.images.map(src=>`<div class="view-img-wrap" onclick="openLightbox('${src}')"><img src="${src}" alt="attachment"/></div>`).join('')}</div></div>`:'';
+  document.getElementById('viewContent').innerHTML=`
+    <div class="modal-header"><h2>${esc(i.title)}</h2>
+    <div class="modal-meta">${badge(i.status)}<span class="client-pill">${esc(i.client)}</span><span style="color:var(--muted);font-size:12px;font-family:var(--mono)">#${i.id}</span></div></div>
+    <div class="field-block"><div class="section-label">Description</div><div class="section-value">${esc(i.desc||'No description.')}</div></div>
+    <div class="info-grid">
+      <div><div class="section-label">Reported By</div><div class="section-value" style="font-weight:600">${esc(i.reporter)}</div></div>
+      <div><div class="section-label">Reported Date</div><div class="section-value">${fmtDate(i.date)}</div></div>
+      <div><div class="section-label">Resolved / Closed Date</div><div class="section-value">${i.resolved_date?fmtDate(i.resolved_date):'<span style="color:var(--muted2)">Not resolved yet</span>'}</div></div>
+    </div>
+    <div class="field-block"><div class="section-label">Remarks &amp; Resolution Notes</div><div class="remark-box">${esc(i.remark||'No remarks added yet.')}</div></div>
+    ${imgs}
+    <div class="modal-actions">
+      <button class="btn-del" onclick="deleteIssue(${i.id})">🗑 Delete</button>
+      <button class="btn-ghost" onclick="openEditModal(${i.id});closeView()">✏ Edit</button>
+    </div>`;
+  document.getElementById('viewOverlay').classList.add('open');
+}
+function closeView(){document.getElementById('viewOverlay').classList.remove('open');}
+async function deleteIssue(id){if(!confirm('Delete this issue?'))return;await apiDelete(id);issues=issues.filter(i=>i.id!==id);closeView();renderAll();toast('Issue deleted','success');}
+function openAddModal(){
+  document.getElementById('f_date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('f_imgs').value='[]';
+  document.getElementById('f_previews').innerHTML='';
+  document.getElementById('f_resolved_date').value='';
+  document.getElementById('addOverlay').classList.add('open');
+}
+function closeAdd(){document.getElementById('addOverlay').classList.remove('open');}
+async function saveIssue(){
+  const client=document.getElementById('f_client').value.trim();
+  const title=document.getElementById('f_title').value.trim();
+  const reporter=document.getElementById('f_reporter').value.trim();
+  if(!client||!title||!reporter){alert('Client, Title and Reporter are required.');return;}
+  const images=JSON.parse(document.getElementById('f_imgs').value||'[]');
+  const issue=await apiPost({client,title,reporter,desc:document.getElementById('f_desc').value.trim(),date:document.getElementById('f_date').value,resolved_date:document.getElementById('f_resolved_date').value||null,status:document.getElementById('f_status').value,remark:document.getElementById('f_remark').value.trim(),images});
+  issues.push(issue);
+  ['f_client','f_title','f_reporter','f_desc','f_remark'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f_imgs').value='[]';document.getElementById('f_previews').innerHTML='';
+  closeAdd();renderAll();toast('Issue saved','success');
+}
+function openEditModal(id){
+  const i=issues.find(x=>x.id===id);if(!i)return;
+  ['id','client','title','reporter','desc','status','date','remark'].forEach(f=>{const el=document.getElementById('e_'+f);if(el)el.value=i[f]||'';});
+  document.getElementById('e_resolved_date').value=i.resolved_date||'';
+  const imgs=i.images||[];
+  document.getElementById('e_imgs').value=JSON.stringify(imgs);
+  renderImgPreviews(imgs,'e_previews','e_imgs');
+  document.getElementById('editOverlay').classList.add('open');
+}
+function closeEdit(){document.getElementById('editOverlay').classList.remove('open');}
+async function updateIssue(){
+  const id=parseInt(document.getElementById('e_id').value);
+  const images=JSON.parse(document.getElementById('e_imgs').value||'[]');
+  const updated=await apiPut(id,{client:document.getElementById('e_client').value.trim(),title:document.getElementById('e_title').value.trim(),reporter:document.getElementById('e_reporter').value.trim(),desc:document.getElementById('e_desc').value.trim(),date:document.getElementById('e_date').value,resolved_date:document.getElementById('e_resolved_date').value||null,status:document.getElementById('e_status').value,remark:document.getElementById('e_remark').value.trim(),images});
+  const idx=issues.findIndex(i=>i.id===id);if(idx!==-1)issues[idx]=updated;
+  closeEdit();renderAll();toast('Issue updated','success');
+}
+function bgClose(e,id){if(e.target.id===id)document.getElementById(id).classList.remove('open');}
+function toast(msg,type='success'){
+  const t=document.createElement('div');t.className=`toast ${type}`;t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),400);},2600);
+}
+fetchIssues();
+</script>
+</body>
+</html>

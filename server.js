@@ -43,22 +43,41 @@ const server = http.createServer(async (req, res) => {
   }
 
   // POST new issue
-  if (pathname === '/api/issues' && req.method === 'POST') {
-    let body = '';
-    req.on('data', d => body += d);
-    req.on('end', async () => {
-      const issue = JSON.parse(body);
-      const issues = await db.collection('issues').find({}).toArray();
-      const newId = issues.length ? Math.max(...issues.map(i => i.id)) + 1 : 1;
-      const clientIssues = issues.filter(i => i.client === issue.client);
-      issue.id = newId;
-      issue.sn = clientIssues.length + 1;
-      await db.collection('issues').insertOne(issue);
-      sendJSON(res, 201, issue);
-    });
-    return;
-  }
+if (pathname === '/api/issues' && req.method === 'POST') {
+  let body = '';
 
+  req.on('data', d => body += d);
+
+  req.on('end', async () => {
+    try {
+      const issue = JSON.parse(body);
+
+      const lastIssue = await db.collection('issues')
+        .find({ id: { $type: 'number' } })
+        .sort({ id: -1 })
+        .limit(1)
+        .toArray();
+
+      const newId = lastIssue.length ? lastIssue[0].id + 1 : 1;
+
+      const clientCount = await db.collection('issues')
+        .countDocuments({ client: issue.client });
+
+      issue.id = newId;
+      issue.sn = clientCount + 1;
+
+      await db.collection('issues').insertOne(issue);
+
+      sendJSON(res, 201, issue);
+
+    } catch (err) {
+      console.error(err);
+      sendJSON(res, 500, { error: 'Failed to create issue' });
+    }
+  });
+
+  return;
+}
   // PUT update issue
   if (pathname.startsWith('/api/issues/') && req.method === 'PUT') {
     const id = parseInt(pathname.split('/').pop());

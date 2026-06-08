@@ -429,23 +429,6 @@ tr.issue-row:hover td{background:#f5f7ff;}
   </div>
 </div>
 
-function getUser(){
-  return JSON.parse(localStorage.getItem("user"));
-}
-
-function applyRoleUI(){
-  const user = getUser();
-  const btn = document.getElementById("nav-users");
-
-  if(!btn) return;
-
-  if(user && user.role === "Admin"){
-    btn.style.display = "block";
-  } else {
-    btn.style.display = "none";
-  }
-}
-  
 <!-- EDIT MODAL -->
 <div class="overlay" id="editOverlay" onclick="bgClose(event,'editOverlay')">
   <div class="modal">
@@ -763,7 +746,6 @@ async function deleteUser(id){
 function logout(){localStorage.removeItem('token');window.location.href='login.html';}
 
 fetchIssues();
-applyRoleUI();
 </script>
 </body>
 </html>

@@ -227,6 +227,33 @@ tr.issue-row:hover td{background:#f5f7ff;}
 .lightbox.open{display:flex;}
 .lightbox img{max-width:90vw;max-height:90vh;border-radius:10px;box-shadow:0 24px 80px rgba(0,0,0,.5);}
 
+  /* ✅ ADD THIS BELOW */
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+.sidebar-bottom {
+    margin-top: auto;
+    padding: 15px;
+}
+
+.logout-btn {
+    width: 100%;
+    padding: 10px;
+    background: #ff4d4f;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.logout-btn:hover {
+    background: #d9363e;
+}
+  
 </style>
 </head>
 <body>
@@ -272,6 +299,9 @@ tr.issue-row:hover td{background:#f5f7ff;}
   <div class="sidebar-footer">
     <div class="sidebar-footer-text">BugTrack v3.0</div>
     <div class="sidebar-footer-text" style="margin-top:4px;">Developed by <span style="color:rgba(165,180,252,.6);font-weight:600;">Ajay Singh Bisht</span></div>
+  </div>
+  <div class="sidebar-bottom">
+    <button class="logout-btn" onclick="logout()">Logout</button>
   </div>
 </aside>
 
@@ -987,6 +1017,12 @@ function toast(msg,type='success'){
   setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),400);},2600);
 }
 fetchIssues();
+</script>
+  <script>
+function logout() {
+    localStorage.removeItem("token"); // remove login session
+    window.location.href = "login.html"; // redirect to login page
+}
 </script>
 </body>
 </html>

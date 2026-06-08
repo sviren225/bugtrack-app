@@ -118,7 +118,50 @@ if (pathname === '/api/issues' && req.method === 'POST') {
     sendJSON(res, 200, { deleted: id });
     return;
   }
+// LOGIN API
+if (pathname === '/api/login' && req.method === 'POST') {
+  let body = '';
 
+  req.on('data', d => body += d);
+
+  req.on('end', async () => {
+    try {
+      const { username, password } = JSON.parse(body);
+
+      const user = await db.collection('users').findOne({
+        username: username,
+        password: password,
+        active: true
+      });
+
+      if (!user) {
+        return sendJSON(res, 401, {
+          success: false,
+          message: 'Invalid username or password'
+        });
+      }
+
+      return sendJSON(res, 200, {
+        success: true,
+        user: {
+          username: user.username,
+          name: user.name,
+          role: user.role
+        }
+      });
+
+    } catch (err) {
+      console.error(err);
+
+      return sendJSON(res, 500, {
+        success: false,
+        message: 'Login failed'
+      });
+    }
+  });
+
+  return;
+}
   // Static files
   let filePath = pathname === '/' ? '/index.html' : pathname;
   filePath = path.join(PUBLIC_DIR, filePath);

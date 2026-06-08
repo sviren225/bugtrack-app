@@ -284,6 +284,12 @@ tr.issue-row:hover td{background:#f5f7ff;}
     <button class="nav-btn" id="nav-reports" onclick="showPage('reports')">
       <span class="nav-label"><span class="nav-icon">📁</span>Reports & Export</span>
     </button>
+    <button class="nav-btn" id="nav-users" onclick="showPage('users')">
+  <span class="nav-label">
+    <span class="nav-icon">👤</span>
+    User Management
+  </span>
+  </button>
     <hr class="nav-divider"/>
     <div class="nav-section-label">Clients</div>
     <div id="clientList"></div>
@@ -383,6 +389,45 @@ tr.issue-row:hover td{background:#f5f7ff;}
         <div class="chart-wrap chart-wrap-sm"><canvas id="cResRate"></canvas></div>
       </div>
     </div>
+
+    <div id="page-users" style="display:none;">
+  
+  <div style="padding:20px;">
+    <h2>User Management</h2>
+
+    <input id="name" placeholder="Name">
+    <input id="username" placeholder="Username">
+    <input id="email" placeholder="Email">
+    <input id="password" placeholder="Password">
+
+    <select id="role">
+      <option>Admin</option>
+      <option>Development Team</option>
+      <option>Implementation Team</option>
+      <option>Business Head</option>
+      <option>Viewer</option>
+    </select>
+
+    <button onclick="createUser()">Create User</button>
+
+    <hr>
+
+    <table border="1" width="100%">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Username</th>
+          <th>Role</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+
+      <tbody id="userTable"></tbody>
+    </table>
+
+  </div>
+
+</div>
 
     <!-- Insight Cards -->
     <div class="insight-row-grid">
@@ -647,8 +692,12 @@ function showPage(p){
   currentPage=p;
   document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
-  ['dashboard','issues','reports'].forEach(x=>document.getElementById('nav-'+x).classList.toggle('active',x===p));
-  const titles={dashboard:'Dashboard',issues:'Issues',reports:'Reports & Export'};
+  ['dashboard','issues','reports','users'].forEach(x=>document.getElementById('nav-'+x).classList.toggle('active',x===p));
+  if (p === 'users') {
+  document.getElementById('page-users').classList.add('active');
+}
+  const titles={dashboard:'Dashboard',issues:'Issues',reports:'Reports & Export',
+  users: 'User Management'};
   document.getElementById('topbarTitle').textContent=titles[p];
   if(p==='dashboard')renderDashboard();
   if(p==='reports')renderReportsPage();

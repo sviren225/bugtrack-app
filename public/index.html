@@ -231,7 +231,7 @@ tr.issue-row:hover td{background:#f5f7ff;}
     <button class="nav-btn" id="nav-reports" onclick="showPage('reports')">
       <span class="nav-label"><span class="nav-icon">📁</span>Reports & Export</span>
     </button>
-    <button class="nav-btn" id="nav-users" onclick="showPage('users')">
+    <button class="nav-btn" id="nav-users" onclick="showPage('users')" id="nav-users-btn">
       <span class="nav-label"><span class="nav-icon">👤</span>User Management</span>
     </button>
     <hr class="nav-divider"/>
@@ -527,7 +527,15 @@ function mkChart(id,type,data,opts){
   charts[id]=new Chart(ctx.getContext('2d'),{type,data,options:{responsive:true,plugins:{legend:{labels:{font:{family:'Plus Jakarta Sans',size:11}}}},scales:{},...opts}});
   return charts[id];
 }
-
+function showPage(p) {
+  // Block non-admins from User Management
+  if (p === 'users') {
+    const user = JSON.parse(localStorage.getItem('token') || '{}');
+    if (user.role !== 'Admin') {
+      toast('Access denied. Admins only.', 'error');
+      return;
+    }
+  }
 function showPage(p){
   currentPage=p;
   document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));

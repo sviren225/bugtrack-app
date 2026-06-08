@@ -118,6 +118,88 @@ if (pathname === '/api/issues' && req.method === 'POST') {
     sendJSON(res, 200, { deleted: id });
     return;
   }
+  if (pathname === '/api/users' && req.method === 'GET') {
+  try {
+    const users = await db.collection('users')
+      .find({}, { projection: { password: 0 } })
+      .toArray();
+
+    return sendJSON(res, 200, users);
+  } catch (err) {
+    return sendJSON(res, 500, { error: 'Failed to fetch users' });
+  }
+}
+  if (pathname === '/api/users' && req.method === 'POST') {
+  let body = '';
+
+  req.on('data', d => body += d);
+
+  req.on('end', async () => {
+    try {
+      const { name, username, email, password, role } = JSON.parse(body);
+
+      if (!username || !password || !role) {
+        return sendJSON(res, 400, {
+          success: false,
+          message: 'Missing required fields'
+        });
+      }
+
+      const existing = await db.collection('users').findOne({ username });
+
+      if (existing) {
+        return sendJSON(res, 409, {
+          success: false,
+          message: 'Username already exists'
+        });
+      }
+
+      const newUser = {
+        name,
+        username,
+        email,
+        password,
+        role,
+        active: true,
+        createdAt: new Date()
+      };
+
+      const result = await db.collection('users').insertOne(newUser);
+
+      return sendJSON(res, 201, {
+        success: true,
+        message: 'User created successfully',
+        userId: result.insertedId
+      });
+
+    } catch (err) {
+      console.error(err);
+      return sendJSON(res, 500, {
+        success: false,
+        message: 'Failed to create user'
+      });
+    }
+  });
+
+  return;
+}
+  if (pathname.startsWith('/api/users/') && req.method === 'DELETE') {
+  try {
+    const id = pathname.split('/').pop();
+
+    await db.collection('users').deleteOne({
+      _id: new ObjectId(id)
+    });
+
+    return sendJSON(res, 200, {
+      success: true,
+      message: 'User deleted'
+    });
+
+  } catch (err) {
+    return sendJSON(res, 500, { error: 'Failed to delete user' });
+  }
+}
 // LOGIN API
 if (pathname === '/api/login' && req.method === 'POST') {
   let body = '';

@@ -744,7 +744,14 @@ async function deleteUser(id){
 }
 
 function logout(){localStorage.removeItem('token');window.location.href='login.html';}
-
+// Hide User Management button for non-admins
+(function() {
+  const user = JSON.parse(localStorage.getItem('token') || '{}');
+  if (user.role !== 'Admin') {
+    const btn = document.getElementById('nav-users');
+    if (btn) btn.style.display = 'none';
+  }
+})();
 fetchIssues();
 </script>
 </body>

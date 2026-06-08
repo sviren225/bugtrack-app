@@ -12,14 +12,14 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 
 let db;
 
-// ---------------- DB CONNECT ----------------
+// ---------------- CONNECT DB ----------------
 async function connectDB() {
   const client = new MongoClient(MONGODB_URI);
   await client.connect();
 
   db = client.db('bugtrack');
 
-  // create default admin
+  // default admin
   const adminUser = await db.collection('users').findOne({ username: 'admin' });
 
   if (!adminUser) {
@@ -36,20 +36,20 @@ async function connectDB() {
     console.log('✓ Default admin user created');
   }
 
-  console.log('✓ Connected to MongoDB Atlas!');
+  console.log('✓ Connected to MongoDB Atlas');
 }
 
 // ---------------- HELPERS ----------------
 function getContentType(filePath) {
   const ext = path.extname(filePath);
-  const types = {
+  const map = {
     '.html': 'text/html',
     '.css': 'text/css',
     '.js': 'application/javascript',
     '.json': 'application/json',
     '.ico': 'image/x-icon'
   };
-  return types[ext] || 'text/plain';
+  return map[ext] || 'text/plain';
 }
 
 function sendJSON(res, status, data) {
@@ -60,12 +60,15 @@ function sendJSON(res, status, data) {
   res.end(JSON.stringify(data));
 }
 
-// 🔥 ADMIN CHECK (INTERLOCK CORE)
+// ---------------- SAFE ADMIN CHECK ----------------
 function isAdmin(req, res) {
-  const role = req.headers['x-role'];
+  const role = req.headers['x-role'] || 'User';
 
   if (role !== 'Admin') {
-    sendJSON(res, 403, { error: 'Access denied (Admin only)' });
+    sendJSON(res, 403, {
+      success: false,
+      message: 'Access denied (Admin only)'
+    });
     return false;
   }
   return true;
@@ -76,7 +79,7 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const pathname = url.pathname;
 
-  // CORS preflight
+  // CORS
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
@@ -87,7 +90,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // ---------------- ISSUES ----------------
+  // ================= ISSUES =================
 
   if (pathname === '/api/issues' && req.method === 'GET') {
     const issues = await db.collection('issues').find({}).toArray();
@@ -96,33 +99,26 @@ const server = http.createServer(async (req, res) => {
 
   if (pathname === '/api/issues' && req.method === 'POST') {
     let body = '';
-
     req.on('data', d => (body += d));
 
     req.on('end', async () => {
       try {
         const issue = JSON.parse(body);
 
-        const lastIssue = await db.collection('issues')
+        const last = await db.collection('issues')
           .find({ id: { $type: 'number' } })
           .sort({ id: -1 })
           .limit(1)
           .toArray();
 
-        const newId = lastIssue.length ? lastIssue[0].id + 1 : 1;
-
-        const clientCount = await db.collection('issues')
-          .countDocuments({ client: issue.client });
-
-        issue.id = newId;
-        issue.sn = clientCount + 1;
+        issue.id = last.length ? last[0].id + 1 : 1;
 
         await db.collection('issues').insertOne(issue);
 
         sendJSON(res, 201, issue);
-      } catch (err) {
-        console.error(err);
-        sendJSON(res, 500, { error: 'Failed to create issue' });
+      } catch (e) {
+        console.error(e);
+        sendJSON(res, 500, { error: 'Issue create failed' });
       }
     });
 
@@ -153,77 +149,55 @@ const server = http.createServer(async (req, res) => {
 
     await db.collection('issues').deleteOne({ id });
 
-    sendJSON(res, 200, { deleted: id });
-    return;
+    return sendJSON(res, 200, { deleted: id });
   }
 
-  // ---------------- USERS (🔥 PROTECTED) ----------------
+  // ================= USERS (PROTECTED) =================
 
   if (pathname === '/api/users' && req.method === 'GET') {
     if (!isAdmin(req, res)) return;
 
-    try {
-      const users = await db.collection('users')
-        .find({}, { projection: { password: 0 } })
-        .toArray();
+    const users = await db.collection('users')
+      .find({}, { projection: { password: 0 } })
+      .toArray();
 
-      return sendJSON(res, 200, users);
-    } catch (err) {
-      return sendJSON(res, 500, { error: 'Failed to fetch users' });
-    }
+    return sendJSON(res, 200, users);
   }
 
   if (pathname === '/api/users' && req.method === 'POST') {
     if (!isAdmin(req, res)) return;
 
     let body = '';
-
     req.on('data', d => (body += d));
 
     req.on('end', async () => {
-      try {
-        const { name, username, email, password, role } = JSON.parse(body);
+      const { name, username, email, password, role } = JSON.parse(body);
 
-        if (!username || !password || !role) {
-          return sendJSON(res, 400, {
-            success: false,
-            message: 'Missing required fields'
-          });
-        }
+      const existing = await db.collection('users').findOne({ username });
 
-        const existing = await db.collection('users').findOne({ username });
-
-        if (existing) {
-          return sendJSON(res, 409, {
-            success: false,
-            message: 'Username already exists'
-          });
-        }
-
-        const newUser = {
-          name,
-          username,
-          email,
-          password,
-          role,
-          active: true,
-          createdAt: new Date()
-        };
-
-        const result = await db.collection('users').insertOne(newUser);
-
-        return sendJSON(res, 201, {
-          success: true,
-          message: 'User created successfully',
-          userId: result.insertedId
-        });
-      } catch (err) {
-        console.error(err);
-        return sendJSON(res, 500, {
+      if (existing) {
+        return sendJSON(res, 409, {
           success: false,
-          message: 'Failed to create user'
+          message: 'User exists'
         });
       }
+
+      const user = {
+        name,
+        username,
+        email,
+        password,
+        role,
+        active: true,
+        createdAt: new Date()
+      };
+
+      const result = await db.collection('users').insertOne(user);
+
+      return sendJSON(res, 201, {
+        success: true,
+        userId: result.insertedId
+      });
     });
 
     return;
@@ -232,68 +206,51 @@ const server = http.createServer(async (req, res) => {
   if (pathname.startsWith('/api/users/') && req.method === 'DELETE') {
     if (!isAdmin(req, res)) return;
 
-    try {
-      const id = pathname.split('/').pop();
+    const id = pathname.split('/').pop();
 
-      await db.collection('users').deleteOne({
-        _id: new ObjectId(id)
-      });
+    await db.collection('users').deleteOne({
+      _id: new ObjectId(id)
+    });
 
-      return sendJSON(res, 200, {
-        success: true,
-        message: 'User deleted'
-      });
-    } catch (err) {
-      return sendJSON(res, 500, { error: 'Failed to delete user' });
-    }
+    return sendJSON(res, 200, { success: true });
   }
 
-  // ---------------- LOGIN ----------------
+  // ================= LOGIN =================
 
   if (pathname === '/api/login' && req.method === 'POST') {
     let body = '';
-
     req.on('data', d => (body += d));
 
     req.on('end', async () => {
-      try {
-        const { username, password } = JSON.parse(body);
+      const { username, password } = JSON.parse(body);
 
-        const user = await db.collection('users').findOne({
-          username,
-          password,
-          active: true
-        });
+      const user = await db.collection('users').findOne({
+        username,
+        password,
+        active: true
+      });
 
-        if (!user) {
-          return sendJSON(res, 401, {
-            success: false,
-            message: 'Invalid username or password'
-          });
-        }
-
-        return sendJSON(res, 200, {
-          success: true,
-          user: {
-            username: user.username,
-            name: user.name,
-            role: user.role
-          }
-        });
-      } catch (err) {
-        console.error(err);
-
-        return sendJSON(res, 500, {
+      if (!user) {
+        return sendJSON(res, 401, {
           success: false,
-          message: 'Login failed'
+          message: 'Invalid login'
         });
       }
+
+      return sendJSON(res, 200, {
+        success: true,
+        user: {
+          username: user.username,
+          name: user.name,
+          role: user.role
+        }
+      });
     });
 
     return;
   }
 
-  // ---------------- STATIC FILES ----------------
+  // ================= STATIC =================
   let filePath = pathname === '/' ? '/index.html' : pathname;
   filePath = path.join(PUBLIC_DIR, filePath);
 
@@ -313,13 +270,9 @@ const server = http.createServer(async (req, res) => {
 connectDB()
   .then(() => {
     server.listen(PORT, () => {
-      console.log('\n  ╔══════════════════════════════════╗');
-      console.log('  ║   BugTrack is running!           ║');
-      console.log('  ║   Running on port: ' + PORT + '           ║');
-      console.log('  ╚══════════════════════════════════╝\n');
+      console.log('\n✔ BugTrack running on port ' + PORT + '\n');
     });
   })
   .catch(err => {
-    console.error('MongoDB connection failed:', err);
-    process.exit(1);
+    console.error(err);
   });

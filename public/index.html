@@ -245,20 +245,6 @@ tr.issue-row:hover td{background:#f5f7ff;}
       </div>
     </div>
   </div>
-  <div style="margin-top: 20px; padding: 10px;">
-    <button onclick="logout()" style="
-        width: 100%;
-        padding: 10px;
-        background: #ff4d4d;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        font-weight: bold;
-    ">
-        Logout
-    </button>
-  </div>
   </aside>
   <nav class="sidebar-nav">
     <div class="nav-section-label">Menu</div>
@@ -1002,12 +988,6 @@ function toast(msg,type='success'){
   setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),400);},2600);
 }
 fetchIssues();
-</script>
-  <script>
-function logout() {
-    localStorage.removeItem("token");
-    window.location.href = "/login.html";
-}
 </script>
 </body>
 </html>

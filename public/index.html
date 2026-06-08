@@ -743,6 +743,7 @@ async function deleteUser(id){
   }catch(err){toast('Failed to delete user','error');}
 }
 
+function logout(){localStorage.removeItem('token');window.location.href='login.html';}
 
 fetchIssues();
 </script>

@@ -8,11 +8,30 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://ajaysinghbisht2255
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
 let db;
-
 async function connectDB() {
   const client = new MongoClient(MONGODB_URI);
   await client.connect();
+
   db = client.db('bugtrack');
+
+  const adminUser = await db.collection('users').findOne({
+    username: 'admin'
+  });
+
+  if (!adminUser) {
+    await db.collection('users').insertOne({
+      name: 'System Administrator',
+      username: 'admin',
+      email: 'admin@bugtrack.local',
+      password: 'admin123',
+      role: 'Admin',
+      active: true,
+      createdAt: new Date()
+    });
+
+    console.log('✓ Default admin user created');
+  }
+
   console.log('✓ Connected to MongoDB Atlas!');
 }
 

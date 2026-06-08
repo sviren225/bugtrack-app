@@ -689,20 +689,38 @@ function mkChart(id,type,data,opts){
 
 // ── PAGE NAV ─────────────────────────────────
 function showPage(p){
-  currentPage=p;
-  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
-  document.getElementById('page-'+p).classList.add('active');
-  ['dashboard','issues','reports','users'].forEach(x=>document.getElementById('nav-'+x).classList.toggle('active',x===p));
-  if (p === 'users') {
-  document.getElementById('page-users').classList.add('active');
-}
-  const titles={dashboard:'Dashboard',issues:'Issues',reports:'Reports & Export',
-  users: 'User Management'};
-  document.getElementById('topbarTitle').textContent=titles[p];
-  if(p==='dashboard')renderDashboard();
-  if(p==='reports')renderReportsPage();
-}
+  currentPage = p;
 
+  // hide all pages
+  document.querySelectorAll('.page')
+    .forEach(x => x.classList.remove('active'));
+
+  // show selected page (IMPORTANT LINE)
+  const page = document.getElementById('page-' + p);
+  if (page) page.classList.add('active');
+
+  // sidebar active state
+  ['dashboard','issues','reports','users']
+    .forEach(x =>
+      document.getElementById('nav-' + x)
+      ?.classList.toggle('active', x === p)
+    );
+
+  // title update
+  const titles = {
+    dashboard: 'Dashboard',
+    issues: 'Issues',
+    reports: 'Reports & Export',
+    users: 'User Management'
+  };
+
+  document.getElementById('topbarTitle').textContent = titles[p];
+
+  // page-specific logic
+  if (p === 'dashboard') renderDashboard();
+  if (p === 'reports') renderReportsPage();
+  if (p === 'users') loadUsers();   // IMPORTANT
+}
 // ── RENDER ALL ────────────────────────────────
 function renderAll(){renderSidebar();renderTopbar();renderTable();if(currentPage==='dashboard')renderDashboard();}
 

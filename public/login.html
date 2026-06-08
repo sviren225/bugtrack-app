@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BugTrack Login</title>
+
+<style>
+body{
+    margin:0;
+    font-family:'Segoe UI',sans-serif;
+    background:#f0f2f7;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+}
+
+.login-card{
+    width:380px;
+    background:white;
+    padding:40px;
+    border-radius:12px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.1);
+}
+
+.logo{
+    text-align:center;
+    font-size:32px;
+    font-weight:700;
+    margin-bottom:10px;
+}
+
+.logo span{
+    color:#4f6ef7;
+}
+
+.subtitle{
+    text-align:center;
+    color:#666;
+    margin-bottom:30px;
+}
+
+.input-group{
+    margin-bottom:15px;
+}
+
+input{
+    width:100%;
+    padding:12px;
+    border:1px solid #ddd;
+    border-radius:8px;
+    box-sizing:border-box;
+}
+
+button{
+    width:100%;
+    padding:12px;
+    border:none;
+    border-radius:8px;
+    background:#4f6ef7;
+    color:white;
+    font-size:15px;
+    font-weight:600;
+    cursor:pointer;
+}
+
+button:hover{
+    background:#3d5df0;
+}
+
+#errorMsg{
+    color:red;
+    margin-top:10px;
+    text-align:center;
+}
+</style>
+</head>
+
+<body>
+
+<div class="login-card">
+
+    <div class="logo">Bug<span>Track</span></div>
+
+    <div class="subtitle">
+        Sign in to continue
+    </div>
+
+    <div class="input-group">
+        <input type="text" id="username" placeholder="Username">
+    </div>
+
+    <div class="input-group">
+        <input type="password" id="password" placeholder="Password">
+    </div>
+
+    <button onclick="login()">
+        Login
+    </button>
+
+    <div id="errorMsg"></div>
+
+</div>
+
+<script>
+async function login() {
+
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+
+    const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            username,
+            password
+        })
+    });
+
+    const result = await response.json();
+
+    if(result.success){
+        window.location.href = '/';
+    } else {
+        document.getElementById('errorMsg').innerText =
+            'Invalid username or password';
+    }
+}
+</script>
+
+</body>
+</html>

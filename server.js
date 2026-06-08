@@ -4,23 +4,19 @@ const path = require('path');
 const { MongoClient, ObjectId } = require('mongodb');
 
 const PORT = process.env.PORT || 3000;
-const MONGODB_URI =
-  process.env.MONGODB_URI ||
-  'mongodb+srv://ajaysinghbisht2255_db_user:Sviren@225@cluster0.vrrnd3e.mongodb.net/?appName=Cluster0';
-
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://ajaysinghbisht2255_db_user:Sviren@225@cluster0.vrrnd3e.mongodb.net/?appName=Cluster0';
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
 let db;
-
-// ---------------- CONNECT DB ----------------
 async function connectDB() {
   const client = new MongoClient(MONGODB_URI);
   await client.connect();
 
   db = client.db('bugtrack');
 
-  // default admin
-  const adminUser = await db.collection('users').findOne({ username: 'admin' });
+  const adminUser = await db.collection('users').findOne({
+    username: 'admin'
+  });
 
   if (!adminUser) {
     await db.collection('users').insertOne({
@@ -36,153 +32,129 @@ async function connectDB() {
     console.log('✓ Default admin user created');
   }
 
-  console.log('✓ Connected to MongoDB Atlas');
+  console.log('✓ Connected to MongoDB Atlas!');
 }
 
-// ---------------- HELPERS ----------------
 function getContentType(filePath) {
   const ext = path.extname(filePath);
-  const map = {
-    '.html': 'text/html',
-    '.css': 'text/css',
-    '.js': 'application/javascript',
-    '.json': 'application/json',
-    '.ico': 'image/x-icon'
-  };
-  return map[ext] || 'text/plain';
+  const types = { '.html':'text/html', '.css':'text/css', '.js':'application/javascript', '.json':'application/json', '.ico':'image/x-icon' };
+  return types[ext] || 'text/plain';
 }
 
 function sendJSON(res, status, data) {
-  res.writeHead(status, {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*'
-  });
+  res.writeHead(status, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
   res.end(JSON.stringify(data));
 }
 
-// ---------------- SAFE ADMIN CHECK ----------------
-function isAdmin(req, res) {
-  const role = req.headers['x-role'] || 'User';
-
-  if (role !== 'Admin') {
-    sendJSON(res, 403, {
-      success: false,
-      message: 'Access denied (Admin only)'
-    });
-    return false;
-  }
-  return true;
-}
-
-// ---------------- SERVER ----------------
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const pathname = url.pathname;
 
-  // CORS
   if (req.method === 'OPTIONS') {
-    res.writeHead(204, {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE',
-      'Access-Control-Allow-Headers': 'Content-Type,x-role'
-    });
-    res.end();
-    return;
+    res.writeHead(204, { 'Access-Control-Allow-Origin':'*', 'Access-Control-Allow-Methods':'GET,POST,PUT,DELETE', 'Access-Control-Allow-Headers':'Content-Type' });
+    res.end(); return;
   }
 
-  // ================= ISSUES =================
-
+  // GET all issues
   if (pathname === '/api/issues' && req.method === 'GET') {
     const issues = await db.collection('issues').find({}).toArray();
     return sendJSON(res, 200, issues);
   }
 
-  if (pathname === '/api/issues' && req.method === 'POST') {
-    let body = '';
-    req.on('data', d => (body += d));
+  // POST new issue
+if (pathname === '/api/issues' && req.method === 'POST') {
+  let body = '';
 
-    req.on('end', async () => {
-      try {
-        const issue = JSON.parse(body);
+  req.on('data', d => body += d);
 
-        const last = await db.collection('issues')
-          .find({ id: { $type: 'number' } })
-          .sort({ id: -1 })
-          .limit(1)
-          .toArray();
+  req.on('end', async () => {
+    try {
+      const issue = JSON.parse(body);
 
-        issue.id = last.length ? last[0].id + 1 : 1;
+      const lastIssue = await db.collection('issues')
+        .find({ id: { $type: 'number' } })
+        .sort({ id: -1 })
+        .limit(1)
+        .toArray();
 
-        await db.collection('issues').insertOne(issue);
+      const newId = lastIssue.length ? lastIssue[0].id + 1 : 1;
 
-        sendJSON(res, 201, issue);
-      } catch (e) {
-        console.error(e);
-        sendJSON(res, 500, { error: 'Issue create failed' });
-      }
-    });
+      const clientCount = await db.collection('issues')
+        .countDocuments({ client: issue.client });
 
-    return;
-  }
+      issue.id = newId;
+      issue.sn = clientCount + 1;
 
+      await db.collection('issues').insertOne(issue);
+
+      sendJSON(res, 201, issue);
+
+    } catch (err) {
+      console.error(err);
+      sendJSON(res, 500, { error: 'Failed to create issue' });
+    }
+  });
+
+  return;
+}
+  // PUT update issue
   if (pathname.startsWith('/api/issues/') && req.method === 'PUT') {
     const id = parseInt(pathname.split('/').pop());
-
     let body = '';
-    req.on('data', d => (body += d));
-
+    req.on('data', d => body += d);
     req.on('end', async () => {
       const update = JSON.parse(body);
-
       await db.collection('issues').updateOne({ id }, { $set: update });
-
       const updated = await db.collection('issues').findOne({ id });
-
       sendJSON(res, 200, updated);
     });
-
     return;
   }
 
+  // DELETE issue
   if (pathname.startsWith('/api/issues/') && req.method === 'DELETE') {
     const id = parseInt(pathname.split('/').pop());
-
     await db.collection('issues').deleteOne({ id });
-
-    return sendJSON(res, 200, { deleted: id });
+    sendJSON(res, 200, { deleted: id });
+    return;
   }
-
-  // ================= USERS (PROTECTED) =================
-
   if (pathname === '/api/users' && req.method === 'GET') {
-    if (!isAdmin(req, res)) return;
-
+  try {
     const users = await db.collection('users')
       .find({}, { projection: { password: 0 } })
       .toArray();
 
     return sendJSON(res, 200, users);
+  } catch (err) {
+    return sendJSON(res, 500, { error: 'Failed to fetch users' });
   }
-
+}
   if (pathname === '/api/users' && req.method === 'POST') {
-    if (!isAdmin(req, res)) return;
+  let body = '';
 
-    let body = '';
-    req.on('data', d => (body += d));
+  req.on('data', d => body += d);
 
-    req.on('end', async () => {
+  req.on('end', async () => {
+    try {
       const { name, username, email, password, role } = JSON.parse(body);
+
+      if (!username || !password || !role) {
+        return sendJSON(res, 400, {
+          success: false,
+          message: 'Missing required fields'
+        });
+      }
 
       const existing = await db.collection('users').findOne({ username });
 
       if (existing) {
         return sendJSON(res, 409, {
           success: false,
-          message: 'User exists'
+          message: 'Username already exists'
         });
       }
 
-      const user = {
+      const newUser = {
         name,
         username,
         email,
@@ -192,48 +164,62 @@ const server = http.createServer(async (req, res) => {
         createdAt: new Date()
       };
 
-      const result = await db.collection('users').insertOne(user);
+      const result = await db.collection('users').insertOne(newUser);
 
       return sendJSON(res, 201, {
         success: true,
+        message: 'User created successfully',
         userId: result.insertedId
       });
-    });
 
-    return;
-  }
+    } catch (err) {
+      console.error(err);
+      return sendJSON(res, 500, {
+        success: false,
+        message: 'Failed to create user'
+      });
+    }
+  });
 
+  return;
+}
   if (pathname.startsWith('/api/users/') && req.method === 'DELETE') {
-    if (!isAdmin(req, res)) return;
-
+  try {
     const id = pathname.split('/').pop();
 
     await db.collection('users').deleteOne({
       _id: new ObjectId(id)
     });
 
-    return sendJSON(res, 200, { success: true });
+    return sendJSON(res, 200, {
+      success: true,
+      message: 'User deleted'
+    });
+
+  } catch (err) {
+    return sendJSON(res, 500, { error: 'Failed to delete user' });
   }
+}
+// LOGIN API
+if (pathname === '/api/login' && req.method === 'POST') {
+  let body = '';
 
-  // ================= LOGIN =================
+  req.on('data', d => body += d);
 
-  if (pathname === '/api/login' && req.method === 'POST') {
-    let body = '';
-    req.on('data', d => (body += d));
-
-    req.on('end', async () => {
+  req.on('end', async () => {
+    try {
       const { username, password } = JSON.parse(body);
 
       const user = await db.collection('users').findOne({
-        username,
-        password,
+        username: username,
+        password: password,
         active: true
       });
 
       if (!user) {
         return sendJSON(res, 401, {
           success: false,
-          message: 'Invalid login'
+          message: 'Invalid username or password'
         });
       }
 
@@ -245,34 +231,40 @@ const server = http.createServer(async (req, res) => {
           role: user.role
         }
       });
-    });
 
-    return;
-  }
+    } catch (err) {
+      console.error(err);
 
-  // ================= STATIC =================
+      return sendJSON(res, 500, {
+        success: false,
+        message: 'Login failed'
+      });
+    }
+  });
+
+  return;
+}
+  // Static files
   let filePath = pathname === '/' ? '/index.html' : pathname;
   filePath = path.join(PUBLIC_DIR, filePath);
 
   fs.readFile(filePath, (err, content) => {
-    if (err) {
-      res.writeHead(404);
-      res.end('Not found');
-      return;
-    }
-
+    if (err) { res.writeHead(404); res.end('Not found'); return; }
     res.writeHead(200, { 'Content-Type': getContentType(filePath) });
     res.end(content);
   });
 });
 
-// ---------------- START ----------------
-connectDB()
-  .then(() => {
-    server.listen(PORT, () => {
-      console.log('\n✔ BugTrack running on port ' + PORT + '\n');
-    });
-  })
-  .catch(err => {
-    console.error(err);
+connectDB().then(() => {
+  server.listen(PORT, () => {
+    console.log('');
+    console.log('  ╔══════════════════════════════════╗');
+    console.log('  ║   BugTrack is running!           ║');
+    console.log('  ║   Running on port: ' + PORT + '           ║');
+    console.log('  ╚══════════════════════════════════╝');
+    console.log('');
   });
+}).catch(err => {
+  console.error('MongoDB connection failed:', err);
+  process.exit(1);
+});

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BugTrack Login</title>
+<style>
+body{margin:0;font-family:'Segoe UI',sans-serif;background:#f0f2f7;display:flex;justify-content:center;align-items:center;height:100vh;}
+.login-card{width:380px;background:white;padding:40px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.1);}
+.logo{text-align:center;font-size:32px;font-weight:700;margin-bottom:6px;}
+.logo span{color:#4f6ef7;}
+.subtitle{text-align:center;color:#666;margin-bottom:30px;font-size:14px;}
+.input-group{margin-bottom:15px;}
+label{display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;}
+input{width:100%;padding:12px;border:1.5px solid #e2e6f0;border-radius:8px;box-sizing:border-box;font-size:14px;outline:none;transition:border-color .2s;}
+input:focus{border-color:#4f6ef7;box-shadow:0 0 0 3px rgba(79,110,247,.1);}
+button{width:100%;padding:12px;border:none;border-radius:8px;background:#4f6ef7;color:white;font-size:15px;font-weight:600;cursor:pointer;margin-top:4px;}
+button:hover{background:#3d5df0;}
+#errorMsg{color:#ef4444;margin-top:12px;text-align:center;font-size:13px;}
+</style>
+</head>
+<body>
+<div class="login-card">
+  <div class="logo">Bug<span>Track</span></div>
+  <div class="subtitle">Sign in to continue</div>
+  <div class="input-group">
+    <label>Username</label>
+    <input type="text" id="username" placeholder="Enter username" onkeydown="if(event.key==='Enter')login()">
+  </div>
+  <div class="input-group">
+    <label>Password</label>
+    <input type="password" id="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')login()">
+  </div>
+  <button onclick="login()">Login</button>
+  <div id="errorMsg"></div>
+</div>
+<script>
+async function login() {
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
+  if(!username||!password){document.getElementById('errorMsg').textContent='Please enter username and password.';return;}
+  try{
+    const response = await fetch('/api/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username, password})
+    });
+    const result = await response.json();
+    if(result.success){
+      localStorage.setItem('token', 'logged-in');
+      localStorage.setItem('session', JSON.stringify(result.user));
+      window.location.href = '/';
+    } else {
+      document.getElementById('errorMsg').textContent = 'Invalid username or password';
+    }
+  }catch(e){
+    document.getElementById('errorMsg').textContent = 'Cannot connect to server.';
+  }
+}
+</script>
+</body>
+</html>

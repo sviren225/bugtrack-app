@@ -933,43 +933,7 @@ function renderDashboard(){
   });
 
   // reporter
-  const repMap={};src.forEach(i=>{repMap[i.reporter]=(repMap[i.reporter]||0)+1;});
-  const reps=Object.entries(repMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
-  mkChart('cReporter','bar',{
-    labels:reps.map(r=>r[0]),
-    datasets:[{
-      label:'Reported', data:reps.map(r=>r[1]),
-      backgroundColor: dark?'rgba(167,139,250,.3)':'rgba(139,92,246,.15)',
-      borderColor: dark?'#a78bfa':'#8b5cf6',
-      borderWidth:2, borderRadius:8, borderSkipped:false,
-      hoverBackgroundColor: dark?'rgba(167,139,250,.5)':'rgba(139,92,246,.3)'
-    }]
-  },{
-    indexAxis:'y',
-    plugins:{legend:{display:false},tooltip:{...tooltipStyle}},
-    scales:{
-      x:{beginAtZero:true,ticks:{stepSize:1,font:mf,color:tc},grid:{color:gc},border:{display:false}},
-      y:{ticks:{font:cf2,color:tc},grid:{display:false},border:{display:false}}
-    }
-  });
-
-  // resolution rate
-  const rrates=cl.map(c=>{const t=src.filter(i=>i.client===c).length;const c2=src.filter(i=>i.client===c&&i.status==='Closed').length;return t?Math.round(c2/t*100):0;});
-  mkChart('cResRate','bar',{
-    labels:cl,
-    datasets:[{
-      label:'Resolution %', data:rrates,
-      backgroundColor: rrates.map(r=>r>=70?closeBg:r>=40?obsBg:openBg),
-      borderColor:      rrates.map(r=>r>=70?CLOSE_C:r>=40?OBS_C:OPEN_C),
-      borderWidth:2, borderRadius:10, borderSkipped:false
-    }]
-  },{
-    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.label}: ${c.parsed}%`},...tooltipStyle}},
-    scales:{
-      y:{beginAtZero:true,max:100,ticks:{callback:v=>v+'%',font:mf,color:tc},grid:{color:gc},border:{display:false}},
-      x:{ticks:{font:cf2,color:tc},grid:{display:false},border:{display:false}}
-    }
-  });
+ 
 
   // doughnut
   mkChart('cStatus','doughnut',{
